@@ -3,40 +3,41 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>TYWS Hub Browser Pro</title>
+  <title>TYWS Hub Browser v3.0</title>
   <style>
     :root {
-      --bg-dark: #0f172a;
-      --bg-panel: #1e293b;
+      --bg-main: #0b1120;
+      --bg-bar: #1e293b;
+      --bg-card: #1e293b;
       --bg-key: #334155;
-      --bg-key-active: #3b82f6;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
+      --bg-key-tap: #2563eb;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
       --accent: #38bdf8;
       --green: #10b981;
+      --amber: #f59e0b;
       --danger: #ef4444;
-      --cast-controls-safe-area-height: 100vh !important;
     }
 
-    /* Vô hiệu hóa lớp phủ <touch-controls> bằng CSS mà không xóa khỏi DOM để tránh treo Cast SDK */
+    /* Triệt tiêu hoàn toàn mọi lớp phủ mặc định của Cast SDK */
     touch-controls,
     cast-media-player {
+      display: none !important;
       pointer-events: none !important;
-      opacity: 0 !important;
       visibility: hidden !important;
+      opacity: 0 !important;
+      width: 0 !important;
+      height: 0 !important;
       position: fixed !important;
       top: -9999px !important;
-      left: -9999px !important;
-      width: 1px !important;
-      height: 1px !important;
-      z-index: -9999 !important;
+      z-index: -99999 !important;
     }
 
     * {
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
       user-select: none;
       -webkit-user-select: none;
-      touch-action: manipulation;
     }
 
     html, body {
@@ -45,68 +46,86 @@
       width: 100vw;
       height: 100vh;
       overflow: hidden !important;
-      background: var(--bg-dark);
-      color: var(--text-main);
+      background: var(--bg-main);
+      color: var(--text-primary);
       font-family: Arial, Helvetica, sans-serif;
+      touch-action: manipulation;
     }
 
-    main#app-shell {
-      position: relative !important;
-      z-index: 999999 !important;
+    #app-root {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
       display: flex;
       flex-direction: column;
       width: 100vw;
       height: 100vh;
-      pointer-events: auto !important;
+      background: var(--bg-main);
     }
 
+    /* THANH ĐIỀU HƯỚNG CỐ ĐỊNH TRÊN CÙNG (LUÔN BẤM ĐƯỢC) */
     #top-bar {
-      height: 50px;
-      background: var(--bg-panel);
-      border-bottom: 1px solid #334155;
+      height: 52px;
+      background: var(--bg-bar);
+      border-bottom: 2px solid #334155;
       display: flex;
       align-items: center;
       gap: 6px;
       padding: 0 8px;
       flex-shrink: 0;
-      z-index: 1000002;
+      z-index: 100010;
     }
 
-    .nav-btn {
+    .bar-btn {
       height: 38px;
       min-width: 42px;
       padding: 0 10px;
       border-radius: 8px;
       border: 1px solid #475569;
       background: #0f172a;
-      color: var(--text-main);
+      color: var(--text-primary);
       font-size: 14px;
-      font-weight: 600;
+      font-weight: 700;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 4px;
       cursor: pointer;
-      pointer-events: auto !important;
+      touch-action: manipulation;
     }
 
-    .nav-btn:active {
-      background: var(--bg-key-active);
+    .bar-btn:active {
+      background: var(--bg-key-tap);
     }
 
-    .nav-btn.active-mode {
+    .bar-btn.home-btn {
+      background: #0284c7;
+      border-color: var(--accent);
+    }
+
+    .bar-btn.mode-smart {
       border-color: var(--green);
       color: #6ee7b7;
+    }
+
+    .bar-btn.mode-reader {
+      border-color: var(--amber);
+      color: #fde68a;
+    }
+
+    .bar-btn.mode-direct {
+      border-color: var(--accent);
+      color: #bae6fd;
     }
 
     #omnibox {
       flex: 1;
       height: 38px;
-      background: #090d16;
+      background: #060911;
       border: 1.5px solid #475569;
       border-radius: 8px;
       padding: 0 12px;
-      color: var(--text-main);
+      color: var(--text-primary);
       font-size: 15px;
       display: flex;
       align-items: center;
@@ -114,393 +133,438 @@
       white-space: nowrap;
       text-overflow: ellipsis;
       cursor: pointer;
-      pointer-events: auto !important;
     }
 
-    #omnibox.focused {
+    #omnibox.active {
       border-color: var(--accent);
-      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.3);
     }
 
-    #viewport-area {
+    /* THANH TRẠNG THÁI NHỎ */
+    #status-strip {
+      height: 4px;
+      width: 100%;
+      background: #1e293b;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    #status-strip.loading::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, var(--accent), var(--green), transparent);
+      animation: slideLoad 1s infinite linear;
+    }
+
+    @keyframes slideLoad {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    /* VÙNG HIỂN THỊ CHÍNH */
+    #stage {
       flex: 1;
       position: relative;
       width: 100%;
       overflow: hidden;
-      background: #111827;
+      background: var(--bg-main);
     }
 
-    #home-view {
+    /* TRANG BẮT ĐẦU (HOME VIEW) */
+    #home-screen {
       position: absolute;
       inset: 0;
-      padding: 18px 24px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      background: radial-gradient(circle at top right, #1e293b, #0f172a 70%);
-    }
-
-    .hero-box {
-      background: rgba(30, 41, 59, 0.85);
-      border: 1px solid #334155;
-      border-radius: 14px;
       padding: 16px 20px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-y;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 14px;
     }
 
-    .hero-header {
+    .search-hero {
+      background: var(--bg-card);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .hero-top {
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
     .hero-title {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 700;
       color: var(--accent);
       margin: 0;
     }
 
-    .status-badge {
+    .badge-ok {
       font-size: 12px;
-      padding: 4px 10px;
-      border-radius: 999px;
+      padding: 3px 10px;
+      border-radius: 99px;
       background: rgba(16, 185, 129, 0.15);
       color: #6ee7b7;
       border: 1px solid rgba(16, 185, 129, 0.4);
     }
 
-    #home-search-trigger {
+    #big-search-box {
       height: 48px;
+      background: #060911;
+      border: 2px solid var(--accent);
       border-radius: 10px;
-      background: #090d16;
-      border: 2px solid #475569;
       padding: 0 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       font-size: 16px;
-      color: var(--text-muted);
+      color: #cbd5e1;
       cursor: pointer;
-      pointer-events: auto !important;
     }
 
-    .bookmarks-grid {
+    .grid-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 2px 0 -4px;
+    }
+
+    .quick-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 10px;
     }
 
-    .bm-card {
-      height: 54px;
+    .site-btn {
+      height: 52px;
       border-radius: 10px;
-      background: #1e293b;
+      background: var(--bg-card);
       border: 1px solid #334155;
-      color: var(--text-main);
+      color: var(--text-primary);
       font-size: 15px;
       font-weight: 600;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      gap: 6px;
       cursor: pointer;
-      pointer-events: auto !important;
+      touch-action: manipulation;
     }
 
-    .bm-card:active {
-      background: var(--bg-key-active);
+    .site-btn:active {
+      background: var(--bg-key-tap);
     }
 
-    #web-view {
+    /* KHUNG TRÌNH DUYỆT WEB */
+    #browser-screen {
       position: absolute;
       inset: 0;
       display: none;
-      flex-direction: column;
       background: #ffffff;
     }
 
-    #browser-frame {
+    #web-iframe {
       width: 100%;
       height: 100%;
       border: none;
       background: #ffffff;
     }
 
-    #loading-bar {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, #38bdf8, #818cf8, #38bdf8);
-      background-size: 200% 100%;
-      animation: loadingAnim 1.2s infinite linear;
-      display: none;
-      z-index: 10;
-    }
-
-    @keyframes loadingAnim {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
-
-    #virtual-keyboard {
+    /* BÀN PHÍM ẢO NỔI CHUYÊN DỤNG CHO FUCHSIA OS */
+    #vk-panel {
       position: fixed;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(15, 23, 42, 0.98);
+      background: #090d16;
       border-top: 2px solid var(--accent);
       padding: 6px 8px 8px;
       display: none;
       flex-direction: column;
       gap: 5px;
-      z-index: 1000005;
-      box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.6);
-      pointer-events: auto !important;
+      z-index: 100020;
+      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.8);
     }
 
-    #virtual-keyboard.visible {
+    #vk-panel.open {
       display: flex;
     }
 
-    #kb-preview-bar {
+    #vk-header {
       display: flex;
       align-items: center;
       gap: 6px;
-      height: 36px;
+      height: 38px;
     }
 
-    #kb-target-label {
+    #vk-context-tag {
       font-size: 12px;
-      padding: 4px 8px;
+      font-weight: 700;
+      padding: 5px 8px;
       border-radius: 6px;
       background: #1e293b;
       color: var(--accent);
-      white-space: nowrap;
       border: 1px solid #334155;
+      white-space: nowrap;
     }
 
-    #kb-buffer-display {
+    #vk-input-preview {
       flex: 1;
-      height: 34px;
-      background: #090d16;
-      border: 1px solid var(--accent);
+      height: 36px;
+      background: #000000;
+      border: 1.5px solid var(--accent);
       border-radius: 6px;
       padding: 0 10px;
       color: #ffffff;
       font-size: 16px;
+      font-weight: 600;
       display: flex;
       align-items: center;
       overflow-x: auto;
       white-space: nowrap;
     }
 
-    #kb-cursor {
+    .caret {
       display: inline-block;
       width: 2px;
       height: 18px;
       background: var(--accent);
       margin-left: 2px;
-      animation: blink 1s infinite;
+      animation: blinkCaret 1s infinite;
     }
 
-    @keyframes blink {
+    @keyframes blinkCaret {
       0%, 49% { opacity: 1; }
       50%, 100% { opacity: 0; }
     }
 
-    .kb-row {
+    .vk-row {
       display: flex;
       gap: 5px;
       width: 100%;
     }
 
-    .kb-key {
+    .vk-key {
       flex: 1;
-      height: 36px;
+      height: 37px;
       border-radius: 6px;
       border: 1px solid #475569;
       background: var(--bg-key);
       color: #ffffff;
       font-size: 16px;
-      font-weight: 600;
+      font-weight: 700;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      pointer-events: auto !important;
+      touch-action: none;
     }
 
-    .kb-key:active {
-      background: var(--bg-key-active);
+    .vk-key.pressed,
+    .vk-key:active {
+      background: var(--bg-key-tap) !important;
+      transform: translateY(1px);
     }
 
-    .kb-key.wide-2 { flex: 1.8; }
-    .kb-key.wide-3 { flex: 3.5; }
-    .kb-key.action-go {
+    .vk-key.w-15 { flex: 1.5; }
+    .vk-key.w-20 { flex: 2.0; }
+    .vk-key.w-35 { flex: 3.5; }
+    .vk-key.k-enter {
       background: var(--green);
       border-color: #059669;
-      color: #052e16;
-      font-weight: 700;
+      color: #022c22;
     }
-    .kb-key.action-toggle-on {
+    .vk-key.k-active {
       background: #0284c7;
       border-color: var(--accent);
     }
-    .kb-key.action-danger {
+    .vk-key.k-clear {
       background: #7f1d1d;
       border-color: var(--danger);
     }
   </style>
 </head>
 <body>
-  <video id="cast-media" hidden playsinline muted aria-hidden="true"></video>
-
-  <main id="app-shell">
+  <!-- KHÔNG ĐẶT THẺ <VIDEO> ĐỂ NGĂN CAST SDK KÍCH HOẠT MEDIA PLAYER & TOUCH-CONTROLS -->
+  <div id="app-root">
+    <!-- THANH CÔNG CỤ CỐ ĐỊNH -->
     <header id="top-bar">
-      <button class="nav-btn" id="btn-home" type="button">🏠 Home</button>
-      <button class="nav-btn" id="btn-back" type="button">◀</button>
-      <button class="nav-btn" id="btn-forward" type="button">▶</button>
-      <button class="nav-btn" id="btn-reload" type="button">🔄</button>
+      <button class="bar-btn home-btn" id="btn-home" type="button">🏠 Home</button>
+      <button class="bar-btn" id="btn-back" type="button">◀</button>
+      <button class="bar-btn" id="btn-forward" type="button">▶</button>
+      <button class="bar-btn" id="btn-reload" type="button">🔄</button>
 
-      <div id="omnibox" role="button">Chạm để nhập từ khóa hoặc địa chỉ web...</div>
+      <div id="omnibox">Chạm để nhập từ khóa hoặc địa chỉ web...</div>
 
-      <button class="nav-btn active-mode" id="btn-proxy-mode" type="button">🛡️ Proxy: BẬT</button>
-      <button class="nav-btn" id="btn-toggle-kb" type="button">⌨️ Phím</button>
+      <button class="bar-btn mode-smart" id="btn-mode" type="button">🛡️ Smart Web</button>
+      <button class="bar-btn" id="btn-kb" type="button">⌨️ Phím</button>
     </header>
 
-    <div id="viewport-area">
-      <div id="loading-bar"></div>
+    <div id="status-strip"></div>
 
-      <section id="home-view">
-        <div class="hero-box">
-          <div class="hero-header">
-            <h1 class="hero-title">🌐 TYWS Hub Browser Pro</h1>
-            <span class="status-badge" id="cast-status">Đang kết nối Cast...</span>
+    <!-- KHU VỰC HIỂN THỊ -->
+    <main id="stage">
+      <!-- MÀN HÌNH BẮT ĐẦU -->
+      <section id="home-screen">
+        <div class="search-hero">
+          <div class="hero-top">
+            <h1 class="hero-title">🌐 TYWS Hub Browser v3.0 (Fuchsia Core)</h1>
+            <span class="badge-ok" id="cast-badge">Đang khởi tạo...</span>
           </div>
-          <div id="home-search-trigger" role="button">
-            <span>🔍 Bạn muốn tìm gì hoặc mở trang web nào? (Chạm vào đây)</span>
-            <span style="color: var(--accent); font-weight: 700;">Gõ phím ⌨️</span>
+          <div id="big-search-box">
+            <span>🔍 Chạm vào đây để gõ từ khóa tìm kiếm hoặc địa chỉ trang web...</span>
+            <span style="color: var(--accent); font-weight: 700;">Bật bàn phím ⌨️</span>
           </div>
         </div>
 
-        <div class="bookmarks-grid">
-          <button class="bm-card" type="button" data-url="https://www.google.com/search?igu=1">🔍 Google</button>
-          <button class="bm-card" type="button" data-url="https://html.duckduckgo.com/html/">🦆 DuckDuckGo</button>
-          <button class="bm-card" type="button" data-url="https://vi.m.wikipedia.org">📖 Wikipedia</button>
-          <button class="bm-card" type="button" data-url="https://vnexpress.net">📰 VnExpress</button>
-          <button class="bm-card" type="button" data-url="https://dantri.com.vn">📰 Dân Trí</button>
-          <button class="bm-card" type="button" data-url="https://tuoitre.vn">📰 Tuổi Trẻ</button>
-          <button class="bm-card" type="button" data-url="https://tinhte.vn">📱 Tinh Tế</button>
-          <button class="bm-card" type="button" data-url="https://cafef.vn">📈 CafeF</button>
+        <div class="grid-title">Công cụ tìm kiếm & Tra cứu (Hỗ trợ gõ trực tiếp trên trang)</div>
+        <div class="quick-grid">
+          <button class="site-btn" type="button" data-url="https://lite.duckduckgo.com/lite/">🦆 DuckDuckGo</button>
+          <button class="site-btn" type="button" data-url="https://www.google.com/search?igu=1">🔍 Google</button>
+          <button class="site-btn" type="button" data-url="https://vi.m.wikipedia.org/wiki/Trang_Ch%C3%ADnh">📖 Wikipedia VN</button>
+          <button class="site-btn" type="button" data-url="https://www.bing.com">🔎 Bing Search</button>
+        </div>
+
+        <div class="grid-title">Báo chí & Tin tức Việt Nam (Đã lọc quảng cáo chống treo RAM)</div>
+        <div class="quick-grid">
+          <button class="site-btn" type="button" data-url="https://vnexpress.net">📰 VnExpress</button>
+          <button class="site-btn" type="button" data-url="https://dantri.com.vn">📰 Dân Trí</button>
+          <button class="site-btn" type="button" data-url="https://tuoitre.vn">📰 Tuổi Trẻ</button>
+          <button class="site-btn" type="button" data-url="https://thanhnien.vn">📰 Thanh Niên</button>
+          <button class="site-btn" type="button" data-url="https://tinhte.vn">📱 Tinh Tế</button>
+          <button class="site-btn" type="button" data-url="https://genk.vn">💻 GenK</button>
+          <button class="site-btn" type="button" data-url="https://cafef.vn">📈 CafeF</button>
+          <button class="site-btn" type="button" data-url="https://24h.com.vn">⚡ 24h.com.vn</button>
         </div>
       </section>
 
-      <section id="web-view">
-        <iframe id="browser-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+      <!-- MÀN HÌNH DUYỆT WEB -->
+      <section id="browser-screen">
+        <iframe id="web-iframe" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
       </section>
-    </div>
+    </main>
 
-    <section id="virtual-keyboard">
-      <div id="kb-preview-bar">
-        <span id="kb-target-label">Thanh địa chỉ</span>
-        <div id="kb-buffer-display"><span id="kb-buffer-text"></span><span id="kb-cursor"></span></div>
-        <button class="nav-btn" id="kb-btn-search-google" type="button" style="background:#0284c7;">🔍 Tìm Google</button>
-        <button class="nav-btn" id="kb-btn-close" type="button" style="background:#334155;">✖ Ẩn</button>
+    <!-- BÀN PHÍM ẢO NỔI -->
+    <section id="vk-panel">
+      <div id="vk-header">
+        <span id="vk-context-tag">🌐 Thanh địa chỉ</span>
+        <div id="vk-input-preview"><span id="vk-text"></span><span class="caret"></span></div>
+        <button class="bar-btn" id="vk-search-site" type="button" style="background:#0f766e;">🔎 Tìm trong trang</button>
+        <button class="bar-btn" id="vk-search-gg" type="button" style="background:#0284c7;">🔍 Google</button>
+        <button class="bar-btn" id="vk-close" type="button" style="background:#334155;">✖ Ẩn</button>
       </div>
 
-      <div class="kb-row">
-        <button class="kb-key" type="button" data-char="1">1</button>
-        <button class="kb-key" type="button" data-char="2">2</button>
-        <button class="kb-key" type="button" data-char="3">3</button>
-        <button class="kb-key" type="button" data-char="4">4</button>
-        <button class="kb-key" type="button" data-char="5">5</button>
-        <button class="kb-key" type="button" data-char="6">6</button>
-        <button class="kb-key" type="button" data-char="7">7</button>
-        <button class="kb-key" type="button" data-char="8">8</button>
-        <button class="kb-key" type="button" data-char="9">9</button>
-        <button class="kb-key" type="button" data-char="0">0</button>
-        <button class="kb-key" type="button" data-char="-">-</button>
-        <button class="kb-key" type="button" data-char=":">:</button>
-        <button class="kb-key" type="button" data-char="/">/</button>
+      <div class="vk-row">
+        <button class="vk-key" type="button" data-char="1">1</button>
+        <button class="vk-key" type="button" data-char="2">2</button>
+        <button class="vk-key" type="button" data-char="3">3</button>
+        <button class="vk-key" type="button" data-char="4">4</button>
+        <button class="vk-key" type="button" data-char="5">5</button>
+        <button class="vk-key" type="button" data-char="6">6</button>
+        <button class="vk-key" type="button" data-char="7">7</button>
+        <button class="vk-key" type="button" data-char="8">8</button>
+        <button class="vk-key" type="button" data-char="9">9</button>
+        <button class="vk-key" type="button" data-char="0">0</button>
+        <button class="vk-key" type="button" data-char="-">-</button>
+        <button class="vk-key" type="button" data-char="/">/</button>
       </div>
 
-      <div class="kb-row">
-        <button class="kb-key" type="button" data-char="q">q</button>
-        <button class="kb-key" type="button" data-char="w">w</button>
-        <button class="kb-key" type="button" data-char="e">e</button>
-        <button class="kb-key" type="button" data-char="r">r</button>
-        <button class="kb-key" type="button" data-char="t">t</button>
-        <button class="kb-key" type="button" data-char="y">y</button>
-        <button class="kb-key" type="button" data-char="u">u</button>
-        <button class="kb-key" type="button" data-char="i">i</button>
-        <button class="kb-key" type="button" data-char="o">o</button>
-        <button class="kb-key" type="button" data-char="p">p</button>
-        <button class="kb-key wide-2" type="button" data-action="backspace">⌫ Xóa</button>
+      <div class="vk-row">
+        <button class="vk-key" type="button" data-char="q">q</button>
+        <button class="vk-key" type="button" data-char="w">w</button>
+        <button class="vk-key" type="button" data-char="e">e</button>
+        <button class="vk-key" type="button" data-char="r">r</button>
+        <button class="vk-key" type="button" data-char="t">t</button>
+        <button class="vk-key" type="button" data-char="y">y</button>
+        <button class="vk-key" type="button" data-char="u">u</button>
+        <button class="vk-key" type="button" data-char="i">i</button>
+        <button class="vk-key" type="button" data-char="o">o</button>
+        <button class="vk-key" type="button" data-char="p">p</button>
+        <button class="vk-key w-15" type="button" data-act="backspace">⌫ Xóa</button>
       </div>
 
-      <div class="kb-row">
-        <button class="kb-key" type="button" data-char="a">a</button>
-        <button class="kb-key" type="button" data-char="s">s</button>
-        <button class="kb-key" type="button" data-char="d">d</button>
-        <button class="kb-key" type="button" data-char="f">f</button>
-        <button class="kb-key" type="button" data-char="g">g</button>
-        <button class="kb-key" type="button" data-char="h">h</button>
-        <button class="kb-key" type="button" data-char="j">j</button>
-        <button class="kb-key" type="button" data-char="k">k</button>
-        <button class="kb-key" type="button" data-char="l">l</button>
-        <button class="kb-key" type="button" data-char=".">.</button>
-        <button class="kb-key wide-2 action-go" type="button" data-action="submit">Đi / Enter ↵</button>
+      <div class="vk-row">
+        <button class="vk-key" type="button" data-char="a">a</button>
+        <button class="vk-key" type="button" data-char="s">s</button>
+        <button class="vk-key" type="button" data-char="d">d</button>
+        <button class="vk-key" type="button" data-char="f">f</button>
+        <button class="vk-key" type="button" data-char="g">g</button>
+        <button class="vk-key" type="button" data-char="h">h</button>
+        <button class="vk-key" type="button" data-char="j">j</button>
+        <button class="vk-key" type="button" data-char="k">k</button>
+        <button class="vk-key" type="button" data-char="l">l</button>
+        <button class="vk-key" type="button" data-char=".">.</button>
+        <button class="vk-key w-15 k-enter" type="button" data-act="enter">Đi / Enter ↵</button>
       </div>
 
-      <div class="kb-row">
-        <button class="kb-key wide-2 action-toggle-on" id="key-telex" type="button" data-action="toggle-telex">VN Telex: BẬT</button>
-        <button class="kb-key" id="key-shift" type="button" data-action="toggle-shift">⇧ Hoa</button>
-        <button class="kb-key" type="button" data-char="z">z</button>
-        <button class="kb-key" type="button" data-char="x">x</button>
-        <button class="kb-key" type="button" data-char="c">c</button>
-        <button class="kb-key" type="button" data-char="v">v</button>
-        <button class="kb-key" type="button" data-char="b">b</button>
-        <button class="kb-key" type="button" data-char="n">n</button>
-        <button class="kb-key" type="button" data-char="m">m</button>
-        <button class="kb-key wide-3" type="button" data-char=" ">Khoảng trắng</button>
-        <button class="kb-key" type="button" data-char=".com">.com</button>
-        <button class="kb-key action-danger" type="button" data-action="clear">Xóa hết</button>
+      <div class="vk-row">
+        <button class="vk-key w-15 k-active" id="vk-telex" type="button" data-act="telex">Telex: BẬT</button>
+        <button class="vk-key" id="vk-shift" type="button" data-act="shift">⇧ Hoa</button>
+        <button class="vk-key" type="button" data-char="z">z</button>
+        <button class="vk-key" type="button" data-char="x">x</button>
+        <button class="vk-key" type="button" data-char="c">c</button>
+        <button class="vk-key" type="button" data-char="v">v</button>
+        <button class="vk-key" type="button" data-char="b">b</button>
+        <button class="vk-key" type="button" data-char="n">n</button>
+        <button class="vk-key" type="button" data-char="m">m</button>
+        <button class="vk-key w-35" type="button" data-char=" ">Khoảng trắng</button>
+        <button class="vk-key" type="button" data-char=".vn">.vn</button>
+        <button class="vk-key k-clear" type="button" data-act="clear">Xóa hết</button>
       </div>
     </section>
-  </main>
+  </div>
 
-  <!-- Nạp đồng bộ Cast SDK và gọi start() ngay lập tức để tránh lỗi RequestTimeout 10s -->
+  <!-- 1. KHỞI TẠO CAST SDK CHẾ ĐỘ PHI MEDIA (KHÔNG BAO GIỜ SINH RA TOUCH-CONTROLS) -->
   <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
   <script>
-    (function initCastImmediately() {
+    (function bootCastReceiver() {
       try {
         if (window.cast && cast.framework) {
           const context = cast.framework.CastReceiverContext.getInstance();
           const options = new cast.framework.CastReceiverOptions();
           options.disableIdleTimeout = true;
-          options.maxInactivity = 3600;
+          options.skipPlayersLoad = true;
+          options.touchScreenOptimizedApp = true;
+          options.maxInactivity = 86400;
           context.start(options);
-          const badge = document.getElementById("cast-status");
-          if (badge) badge.textContent = "Cast đã sẵn sàng • Chạm để gõ";
+          const badge = document.getElementById("cast-badge");
+          if (badge) badge.textContent = "Độc lập • Chống treo RAM";
         }
-      } catch (err) {
-        console.warn("Cast init error:", err);
+      } catch (e) {
+        console.warn("Cast boot notice:", e);
       }
+
+      // Giữ màn hình Nest Hub 2 luôn sáng bằng Screen WakeLock API
+      async function requestWakeLock() {
+        try {
+          if ("wakeLock" in navigator) {
+            await navigator.wakeLock.request("screen");
+          }
+        } catch (e) {}
+      }
+      requestWakeLock();
+      document.addEventListener("pointerdown", requestWakeLock, { once: true });
     })();
   </script>
 
-  <!-- Logic trình duyệt và bàn phím ảo -->
+  <!-- 2. LÕI TRÌNH DUYỆT & BỘ LỌC DOM CHỐNG TREO NEST HUB 2 -->
   <script>
     (function () {
       "use strict";
 
-      // Bộ gõ Tiếng Việt Telex
-      const VOWEL_TABLE = {
+      // BỘ GÕ TIẾNG VIỆT TELEX
+      const VOWELS = {
         a: ["a", "à", "á", "ả", "ã", "ạ"],
         ă: ["ă", "ằ", "ắ", "ẳ", "ẵ", "ặ"],
         â: ["â", "ầ", "ấ", "ẩ", "ẫ", "ậ"],
@@ -514,246 +578,260 @@
         ư: ["ư", "ừ", "ứ", "ử", "ữ", "ự"],
         y: ["y", "ỳ", "ý", "ỷ", "ỹ", "ỵ"]
       };
-
-      const TONE_MAP = { z: 0, f: 1, s: 2, r: 3, x: 4, j: 5 };
-      const CHAR_TO_BASE = {};
-      Object.entries(VOWEL_TABLE).forEach(([base, arr]) => {
-        arr.forEach((ch, toneIdx) => {
-          CHAR_TO_BASE[ch] = { base, tone: toneIdx, upper: false };
-          CHAR_TO_BASE[ch.toUpperCase()] = { base, tone: toneIdx, upper: true };
+      const TONES = { z: 0, f: 1, s: 2, r: 3, x: 4, j: 5 };
+      const MAP = {};
+      Object.entries(VOWELS).forEach(([base, list]) => {
+        list.forEach((ch, idx) => {
+          MAP[ch] = { base, tone: idx, upper: false };
+          MAP[ch.toUpperCase()] = { base, tone: idx, upper: true };
         });
       });
 
-      function transformChar(ch, newBase, newTone) {
-        const info = CHAR_TO_BASE[ch];
+      function makeVowel(ch, base, tone) {
+        const info = MAP[ch];
         if (!info) return ch;
-        const out = VOWEL_TABLE[newBase][newTone];
-        return info.upper ? out.toUpperCase() : out;
+        const res = VOWELS[base][tone];
+        return info.upper ? res.toUpperCase() : res;
       }
 
-      function applyTelexToWord(word, key) {
+      function applyTelex(word, key) {
         const k = key.toLowerCase();
-        const chars = Array.from(word);
-
-        if (k === "d" && chars.length >= 1) {
-          const last = chars[chars.length - 1];
-          if (last === "d") { chars[chars.length - 1] = "đ"; return chars.join(""); }
-          if (last === "D") { chars[chars.length - 1] = "Đ"; return chars.join(""); }
+        const arr = Array.from(word);
+        if (k === "d" && arr.length > 0) {
+          const last = arr[arr.length - 1];
+          if (last === "d") { arr[arr.length - 1] = "đ"; return arr.join(""); }
+          if (last === "D") { arr[arr.length - 1] = "Đ"; return arr.join(""); }
         }
-
         if (["a", "e", "o", "w"].includes(k)) {
-          for (let i = chars.length - 1; i >= 0; i--) {
-            const info = CHAR_TO_BASE[chars[i]];
-            if (!info) continue;
-            if (k === "a" && info.base === "a") { chars[i] = transformChar(chars[i], "â", info.tone); return chars.join(""); }
-            if (k === "e" && info.base === "e") { chars[i] = transformChar(chars[i], "ê", info.tone); return chars.join(""); }
-            if (k === "o" && info.base === "o") { chars[i] = transformChar(chars[i], "ô", info.tone); return chars.join(""); }
+          for (let i = arr.length - 1; i >= 0; i--) {
+            const inf = MAP[arr[i]];
+            if (!inf) continue;
+            if (k === "a" && inf.base === "a") { arr[i] = makeVowel(arr[i], "â", inf.tone); return arr.join(""); }
+            if (k === "e" && inf.base === "e") { arr[i] = makeVowel(arr[i], "ê", inf.tone); return arr.join(""); }
+            if (k === "o" && inf.base === "o") { arr[i] = makeVowel(arr[i], "ô", inf.tone); return arr.join(""); }
             if (k === "w") {
-              if (info.base === "a") { chars[i] = transformChar(chars[i], "ă", info.tone); return chars.join(""); }
-              if (info.base === "o") { chars[i] = transformChar(chars[i], "ơ", info.tone); return chars.join(""); }
-              if (info.base === "u") { chars[i] = transformChar(chars[i], "ư", info.tone); return chars.join(""); }
+              if (inf.base === "a") { arr[i] = makeVowel(arr[i], "ă", inf.tone); return arr.join(""); }
+              if (inf.base === "o") { arr[i] = makeVowel(arr[i], "ơ", inf.tone); return arr.join(""); }
+              if (inf.base === "u") { arr[i] = makeVowel(arr[i], "ư", inf.tone); return arr.join(""); }
             }
           }
         }
-
-        if (Object.prototype.hasOwnProperty.call(TONE_MAP, k)) {
-          const targetTone = TONE_MAP[k];
-          let vowelIndices = [];
-          for (let i = 0; i < chars.length; i++) {
-            if (CHAR_TO_BASE[chars[i]]) {
-              const prev = i > 0 ? chars[i - 1].toLowerCase() : "";
-              if ((prev === "q" && chars[i].toLowerCase() === "u") ||
-                  (prev === "g" && chars[i].toLowerCase() === "i" && i + 1 < chars.length && CHAR_TO_BASE[chars[i + 1]])) {
+        if (Object.prototype.hasOwnProperty.call(TONES, k)) {
+          const tone = TONES[k];
+          const vIdx = [];
+          for (let i = 0; i < arr.length; i++) {
+            if (MAP[arr[i]]) {
+              const p = i > 0 ? arr[i - 1].toLowerCase() : "";
+              if ((p === "q" && arr[i].toLowerCase() === "u") ||
+                  (p === "g" && arr[i].toLowerCase() === "i" && i + 1 < arr.length && MAP[arr[i + 1]])) {
                 continue;
               }
-              vowelIndices.push(i);
+              vIdx.push(i);
             }
           }
-          if (vowelIndices.length > 0) {
-            let chosenIdx = vowelIndices[0];
-            const priorityVowel = vowelIndices.find((idx) =>
-              ["ă", "â", "ê", "ô", "ơ", "ư"].includes(CHAR_TO_BASE[chars[idx]].base)
-            );
-            if (priorityVowel !== undefined) {
-              chosenIdx = priorityVowel;
-            } else if (vowelIndices.length === 2) {
-              const hasConsonantEnd = vowelIndices[1] < chars.length - 1;
-              chosenIdx = hasConsonantEnd ? vowelIndices[1] : vowelIndices[0];
-            } else if (vowelIndices.length >= 3) {
-              chosenIdx = vowelIndices[1];
-            }
+          if (vIdx.length > 0) {
+            let pick = vIdx[0];
+            const pri = vIdx.find((idx) => ["ă", "â", "ê", "ô", "ơ", "ư"].includes(MAP[arr[idx]].base));
+            if (pri !== undefined) pick = pri;
+            else if (vIdx.length === 2) pick = vIdx[1] < arr.length - 1 ? vIdx[1] : vIdx[0];
+            else if (vIdx.length >= 3) pick = vIdx[1];
 
-            const currentInfo = CHAR_TO_BASE[chars[chosenIdx]];
-            if (currentInfo.tone === targetTone && k !== "z") {
-              chars[chosenIdx] = transformChar(chars[chosenIdx], currentInfo.base, 0);
-              return chars.join("") + key;
+            const cur = MAP[arr[pick]];
+            if (cur.tone === tone && k !== "z") {
+              arr[pick] = makeVowel(arr[pick], cur.base, 0);
+              return arr.join("") + key;
             }
-            chars[chosenIdx] = transformChar(chars[chosenIdx], currentInfo.base, targetTone);
-            return chars.join("");
+            arr[pick] = makeVowel(arr[pick], cur.base, tone);
+            return arr.join("");
           }
         }
         return word + key;
       }
 
-      function processKeyInput(currentText, key, useTelex) {
-        if (!useTelex || key === " " || key.length > 1) return currentText + key;
-        const lastSpace = currentText.lastIndexOf(" ");
-        const prefix = lastSpace >= 0 ? currentText.slice(0, lastSpace + 1) : "";
-        const lastWord = lastSpace >= 0 ? currentText.slice(lastSpace + 1) : currentText;
-        if (lastWord.includes("://") || lastWord.includes("www.") || lastWord.includes(".com")) {
-          return currentText + key;
+      function typeChar(text, key, telexOn) {
+        if (!telexOn || key === " " || key.length > 1) return text + key;
+        const sp = text.lastIndexOf(" ");
+        const head = sp >= 0 ? text.slice(0, sp + 1) : "";
+        const tail = sp >= 0 ? text.slice(sp + 1) : text;
+        if (tail.includes("://") || tail.includes("www.") || tail.includes(".com") || tail.includes(".vn")) {
+          return text + key;
         }
-        return prefix + applyTelexToWord(lastWord, key);
+        return head + applyTelex(tail, key);
       }
 
+      // QUẢN LÝ TRẠNG THÁI
+      const MODES = ["smart", "reader", "direct"];
       const state = {
+        modeIndex: 0, // 0: Smart Web, 1: Reader, 2: Direct Iframe
         currentUrl: "",
         history: [],
-        historyIndex: -1,
-        proxyEnabled: true,
-        telexEnabled: true,
-        shiftEnabled: false,
-        kbTarget: "omnibox",
-        kbBuffer: ""
+        historyPos: -1,
+        telex: true,
+        shift: false,
+        kbTarget: "omnibox", // 'omnibox' hoặc 'web-input'
+        kbText: "",
+        activeController: null
       };
 
-      const els = {
+      const ui = {
         omnibox: document.getElementById("omnibox"),
-        homeView: document.getElementById("home-view"),
-        webView: document.getElementById("web-view"),
-        iframe: document.getElementById("browser-frame"),
-        loadingBar: document.getElementById("loading-bar"),
-        keyboard: document.getElementById("virtual-keyboard"),
-        kbTargetLabel: document.getElementById("kb-target-label"),
-        kbBufferText: document.getElementById("kb-buffer-text"),
-        btnProxy: document.getElementById("btn-proxy-mode"),
-        keyTelex: document.getElementById("key-telex"),
-        keyShift: document.getElementById("key-shift")
+        statusStrip: document.getElementById("status-strip"),
+        homeScreen: document.getElementById("home-screen"),
+        browserScreen: document.getElementById("browser-screen"),
+        iframe: document.getElementById("web-iframe"),
+        btnMode: document.getElementById("btn-mode"),
+        vkPanel: document.getElementById("vk-panel"),
+        vkTag: document.getElementById("vk-context-tag"),
+        vkText: document.getElementById("vk-text"),
+        vkTelex: document.getElementById("vk-telex"),
+        vkShift: document.getElementById("vk-shift")
       };
 
-      function openKeyboard(target, initialValue, labelText) {
+      function showKeyboard(target, initialText, label) {
         state.kbTarget = target;
-        state.kbBuffer = initialValue || "";
-        els.kbTargetLabel.textContent = labelText || (target === "omnibox" ? "Thanh địa chỉ / Tìm kiếm" : "Ô nhập trên web");
-        els.keyboard.classList.add("visible");
-        els.omnibox.classList.toggle("focused", target === "omnibox");
-        renderKeyboardBuffer();
+        state.kbText = initialText || "";
+        ui.vkTag.textContent = label || (target === "omnibox" ? "🌐 Thanh địa chỉ" : "✏️ Ô nhập trên web");
+        ui.vkPanel.classList.add("open");
+        ui.omnibox.classList.toggle("active", target === "omnibox");
+        syncKeyboardOutput();
       }
 
-      function closeKeyboard() {
-        els.keyboard.classList.remove("visible");
-        els.omnibox.classList.remove("focused");
+      function hideKeyboard() {
+        ui.vkPanel.classList.remove("open");
+        ui.omnibox.classList.remove("active");
       }
 
-      function renderKeyboardBuffer() {
-        els.kbBufferText.textContent = state.kbBuffer;
+      function syncKeyboardOutput() {
+        ui.vkText.textContent = state.kbText;
         if (state.kbTarget === "omnibox") {
-          els.omnibox.textContent = state.kbBuffer || "Chạm để nhập từ khóa hoặc địa chỉ web...";
-        } else if (state.kbTarget === "webpage-input" && els.iframe.contentWindow) {
-          els.iframe.contentWindow.postMessage({
-            type: "TYWS_UPDATE_INPUT",
-            value: state.kbBuffer
+          ui.omnibox.textContent = state.kbText || "Chạm để nhập từ khóa hoặc địa chỉ web...";
+        } else if (state.kbTarget === "web-input" && ui.iframe.contentWindow) {
+          ui.iframe.contentWindow.postMessage({
+            type: "TYWS_SET_INPUT_VALUE",
+            value: state.kbText
           }, "*");
         }
       }
 
-      function buildInjectedBridgeScript(baseUrl) {
+      // SCRIPT CẦU NỐI SIÊU NHẸ TIÊM VÀO TRANG WEB ĐỂ BẬT BÀN PHÍM KHI CHẠM Ô TÌM KIẾM
+      function getBridgeInjection(baseUrl) {
         return `
           <base href="${baseUrl}">
           <style>
-            .tyws-active-input {
-              outline: 3px solid #38bdf8 !important;
-              box-shadow: 0 0 12px rgba(56, 189, 248, 0.7) !important;
+            html, body {
+              max-width: 100vw !important;
+              overflow-x: hidden !important;
+              padding-bottom: 260px !important;
+              -webkit-overflow-scrolling: touch !important;
             }
-            body { padding-bottom: 260px !important; }
+            img, video, figure { max-width: 100% !important; height: auto !important; }
+            input, textarea, select, [role="searchbox"] {
+              pointer-events: auto !important;
+              min-height: 36px !important;
+              border: 2px solid #0284c7 !important;
+              border-radius: 6px !important;
+              padding: 4px 8px !important;
+              background: #ffffff !important;
+              color: #0f172a !important;
+            }
+            .tyws-focused-input {
+              outline: 3px solid #10b981 !important;
+              box-shadow: 0 0 12px rgba(16, 185, 129, 0.7) !important;
+              background: #f0fdf4 !important;
+            }
           </style>
           <script>
             (function() {
-              let activeEl = null;
-              let lastTap = 0;
+              let currentInput = null;
 
-              function isEditableInput(el) {
+              function isTextInput(el) {
                 if (!el) return false;
                 const tag = (el.tagName || '').toUpperCase();
                 if (tag === 'TEXTAREA') return true;
                 if (el.isContentEditable) return true;
                 if (tag === 'INPUT') {
-                  const type = (el.getAttribute('type') || 'text').toLowerCase();
-                  return !['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'hidden', 'image', 'range', 'color'].includes(type);
+                  const t = (el.getAttribute('type') || 'text').toLowerCase();
+                  return !['submit', 'button', 'reset', 'checkbox', 'radio', 'file', 'hidden', 'image'].includes(t);
                 }
-                return false;
+                return el.getAttribute('role') === 'searchbox';
               }
 
-              function handleInputTap(e) {
-                const target = e.target.closest('input, textarea, [contenteditable="true"], [role="searchbox"], [role="combobox"]');
-                if (target && isEditableInput(target)) {
-                  const now = Date.now();
-                  if (now - lastTap < 250) return;
-                  lastTap = now;
-                  if (activeEl) activeEl.classList.remove('tyws-active-input');
-                  activeEl = target;
-                  activeEl.classList.add('tyws-active-input');
-                  const currentVal = activeEl.value !== undefined ? activeEl.value : (activeEl.innerText || '');
-                  const hint = activeEl.getAttribute('placeholder') || activeEl.getAttribute('name') || 'Ô tìm kiếm trên web';
-                  window.parent.postMessage({
-                    type: 'TYWS_OPEN_KB_FROM_WEB',
-                    value: currentVal,
-                    label: '✏️ ' + hint.slice(0, 22)
-                  }, '*');
-                }
-              }
-
-              document.addEventListener('pointerdown', handleInputTap, true);
-              document.addEventListener('touchstart', handleInputTap, true);
-              document.addEventListener('click', handleInputTap, true);
-
+              // Bắt thao tác chạm vào mọi ô tìm kiếm/nhập liệu hoặc nút kính lúp trên trang web
               document.addEventListener('click', function(e) {
+                const inputEl = e.target.closest('input, textarea, [contenteditable="true"], [role="searchbox"]');
+                if (inputEl && isTextInput(inputEl)) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (currentInput) currentInput.classList.remove('tyws-focused-input');
+                  currentInput = inputEl;
+                  currentInput.classList.add('tyws-focused-input');
+                  try { currentInput.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(err){}
+                  const val = currentInput.value !== undefined ? currentInput.value : (currentInput.innerText || '');
+                  const ph = currentInput.getAttribute('placeholder') || currentInput.getAttribute('name') || 'Ô tìm kiếm trên web';
+                  window.parent.postMessage({
+                    type: 'TYWS_REQUEST_KEYBOARD',
+                    value: val,
+                    label: '✏️ ' + ph.slice(0, 20)
+                  }, '*');
+                  return;
+                }
+
+                // Bắt thao tác bấm vào đường link <a>
                 const link = e.target.closest('a[href]');
-                if (!link) return;
-                const rawHref = link.getAttribute('href');
-                if (!rawHref || rawHref.startsWith('#') || rawHref.startsWith('javascript:')) return;
-                e.preventDefault();
-                e.stopPropagation();
-                try {
-                  const resolved = new URL(rawHref, document.baseURI).href;
-                  window.parent.postMessage({ type: 'TYWS_NAVIGATE', url: resolved }, '*');
-                } catch (err) {}
+                if (link) {
+                  const href = link.getAttribute('href');
+                  if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  try {
+                    const fullUrl = new URL(href, document.baseURI).href;
+                    window.parent.postMessage({ type: 'TYWS_OPEN_URL', url: fullUrl }, '*');
+                  } catch(err) {}
+                }
               }, true);
 
+              // Bắt sự kiện gửi biểu mẫu (Submit Form tìm kiếm)
               document.addEventListener('submit', function(e) {
                 const form = e.target;
                 if (!form) return;
                 e.preventDefault();
-                try {
-                  const actionUrl = new URL(form.getAttribute('action') || document.baseURI, document.baseURI);
-                  const formData = new FormData(form);
-                  const params = new URLSearchParams(actionUrl.search);
-                  for (const [k, v] of formData.entries()) {
-                    params.set(k, v);
-                  }
-                  actionUrl.search = params.toString();
-                  window.parent.postMessage({ type: 'TYWS_NAVIGATE', url: actionUrl.href }, '*');
-                } catch (err) {}
+                e.stopPropagation();
+                submitFormElement(form);
               }, true);
 
+              function submitFormElement(form) {
+                try {
+                  const rawAction = form.getAttribute('action') || document.baseURI;
+                  const target = new URL(rawAction, document.baseURI);
+                  const fd = new FormData(form);
+                  const params = new URLSearchParams(target.search);
+                  for (const [k, v] of fd.entries()) {
+                    if (typeof v === 'string') params.set(k, v);
+                  }
+                  target.search = params.toString();
+                  window.parent.postMessage({ type: 'TYWS_OPEN_URL', url: target.href }, '*');
+                } catch(err) {}
+              }
+
+              // Nhận chữ từ bàn phím ảo của TYWS Hub Browser
               window.addEventListener('message', function(e) {
-                const data = e.data || {};
-                if (data.type === 'TYWS_UPDATE_INPUT' && activeEl) {
-                  if (activeEl.value !== undefined) {
-                    activeEl.value = data.value;
+                const msg = e.data || {};
+                if (msg.type === 'TYWS_SET_INPUT_VALUE' && currentInput) {
+                  if (currentInput.value !== undefined) {
+                    currentInput.value = msg.value;
                   } else {
-                    activeEl.innerText = data.value;
+                    currentInput.innerText = msg.value;
                   }
-                  activeEl.dispatchEvent(new Event('input', { bubbles: true }));
-                  activeEl.dispatchEvent(new Event('change', { bubbles: true }));
-                } else if (data.type === 'TYWS_SUBMIT_ACTIVE_INPUT' && activeEl) {
-                  const form = activeEl.closest('form');
-                  if (form) {
-                    form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-                  } else {
-                    const enterEvt = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
-                    activeEl.dispatchEvent(enterEvt);
+                } else if (msg.type === 'TYWS_TRIGGER_SUBMIT') {
+                  if (currentInput) {
+                    const form = currentInput.closest('form');
+                    if (form) {
+                      submitFormElement(form);
+                      return;
+                    }
                   }
+                  const val = currentInput ? (currentInput.value || currentInput.innerText || '') : '';
+                  window.parent.postMessage({ type: 'TYWS_FALLBACK_SITE_SEARCH', query: val }, '*');
                 }
               });
             })();
@@ -761,222 +839,369 @@
         `;
       }
 
-      async function fetchHtmlWithFallback(targetUrl) {
-        const proxies = [
-          (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
-          (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-          (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
+      // BỘ LỌC LÀM SẠCH HTML (LOẠI BỎ 100% JAVASCRIPT NẶNG GÂY ĐƠ RAM NEST HUB 2)
+      function sanitizeAndInjectHtml(rawHtml, baseUrl) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(rawHtml, "text/html");
+
+        // Xóa toàn bộ script của bên thứ 3, quảng cáo iframe, noscript gây treo CPU
+        doc.querySelectorAll("script, noscript, iframe, object, embed, meta[http-equiv]").forEach((el) => el.remove());
+
+        // Gỡ các thuộc tính sự kiện inline (onclick, onload, onerror...) và sửa ảnh lazy-load
+        doc.querySelectorAll("*").forEach((el) => {
+          for (const attr of Array.from(el.attributes)) {
+            if (attr.name.toLowerCase().startsWith("on")) {
+              el.removeAttribute(attr.name);
+            }
+          }
+          if (el.tagName === "IMG") {
+            const lazySrc =
+              el.getAttribute("data-src") ||
+              el.getAttribute("data-original") ||
+              el.getAttribute("data-lazy-src") ||
+              el.getAttribute("data-url");
+            if (lazySrc) {
+              el.setAttribute("src", lazySrc);
+            }
+            el.removeAttribute("srcset");
+            el.setAttribute("loading", "lazy");
+          }
+        });
+
+        const headHtml = doc.head ? doc.head.innerHTML : "";
+        const bodyHtml = doc.body ? doc.body.innerHTML : rawHtml;
+
+        return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  ${getBridgeInjection(baseUrl)}
+  ${headHtml}
+</head>
+<body>
+  ${bodyHtml}
+</body>
+</html>`;
+      }
+
+      // TẢI TRANG QUA MULTI-PROXY CÓ TIMEOUT NGẮN VÀ HỦY TÁC VỤ CŨ
+      async function fetchViaSmartProxy(url, signal) {
+        const gateways = [
+          `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
         ];
-        for (const makeProxyUrl of proxies) {
+
+        for (const gw of gateways) {
+          if (signal.aborted) throw new Error("Aborted");
           try {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), 8000);
-            const res = await fetch(makeProxyUrl(targetUrl), { signal: controller.signal });
+            const subCtrl = new AbortController();
+            const timer = setTimeout(() => subCtrl.abort(), 6500);
+            const onParentAbort = () => subCtrl.abort();
+            signal.addEventListener("abort", onParentAbort, { once: true });
+
+            const res = await fetch(gw, { signal: subCtrl.signal });
             clearTimeout(timer);
+            signal.removeEventListener("abort", onParentAbort);
+
             if (res.ok) {
               const text = await res.text();
-              if (text && text.length > 50) return text;
+              if (text && text.length > 80) return text;
             }
-          } catch (e) {}
+          } catch (e) {
+            if (signal.aborted) throw e;
+          }
         }
-        throw new Error("Proxy fetch failed");
+        throw new Error("All proxies failed");
       }
 
-      function normalizeInputToUrl(input) {
-        const trimmed = (input || "").trim();
-        if (!trimmed) return "";
-        if (/^https?:\/\//i.test(trimmed)) return trimmed;
-        if (!trimmed.includes(" ") && /^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+/.test(trimmed)) {
-          return "https://" + trimmed;
-        }
-        return "https://html.duckduckgo.com/html/?q=" + encodeURIComponent(trimmed);
+      // CHẾ ĐỘ ĐỌC BÁO SẠCH (READER MODE)
+      async function fetchReaderView(url, signal) {
+        const readerUrl = `https://r.jina.ai/${url}`;
+        const res = await fetch(readerUrl, { signal });
+        const text = await res.text();
+        const escaped = text
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      background: #0f172a;
+      color: #f1f5f9;
+      font-family: Arial, sans-serif;
+      font-size: 18px;
+      line-height: 1.65;
+      padding: 20px 28px 260px;
+      max-width: 960px;
+      margin: 0 auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+  </style>
+</head>
+<body>${escaped}</body>
+</html>`;
       }
 
-      async function navigateTo(rawInput, pushHistory = true) {
-        const targetUrl = normalizeInputToUrl(rawInput);
+      function resolveInputToUrl(raw) {
+        const s = (raw || "").trim();
+        if (!s) return "";
+        if (/^https?:\/\//i.test(s)) return s;
+        if (!s.includes(" ") && /^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+/.test(s)) {
+          return "https://" + s;
+        }
+        return "https://lite.duckduckgo.com/lite/?q=" + encodeURIComponent(s);
+      }
+
+      function buildSiteSearchUrl(currentUrl, query) {
+        try {
+          const u = new URL(currentUrl);
+          const host = u.hostname.replace(/^www\./, "");
+          if (host.includes("google.")) return `https://www.google.com/search?igu=1&q=${encodeURIComponent(query)}`;
+          if (host.includes("wikipedia.org")) return `https://vi.m.wikipedia.org/w/index.php?search=${encodeURIComponent(query)}`;
+          if (host.includes("vnexpress.net")) return `https://timkiem.vnexpress.net/?q=${encodeURIComponent(query)}`;
+          if (host.includes("dantri.com.vn")) return `https://dantri.com.vn/tim-kiem/${encodeURIComponent(query)}.htm`;
+          if (host.includes("tuoitre.vn")) return `https://tuoitre.vn/tim-kiem.htm?keywords=${encodeURIComponent(query)}`;
+          if (host.includes("tinhte.vn")) return `https://www.google.com/search?igu=1&q=${encodeURIComponent("site:tinhte.vn " + query)}`;
+          return `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent("site:" + host + " " + query)}`;
+        } catch (e) {
+          return `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
+        }
+      }
+
+      // HÀM ĐIỀU HƯỚNG TRUNG TÂM
+      async function openUrl(rawInput, recordHistory = true) {
+        const targetUrl = resolveInputToUrl(rawInput);
         if (!targetUrl) return;
 
-        closeKeyboard();
-        state.currentUrl = targetUrl;
-        els.omnibox.textContent = targetUrl;
-        els.homeView.style.display = "none";
-        els.webView.style.display = "flex";
-        els.loadingBar.style.display = "block";
+        // Hủy ngay lập tức trang đang tải dở (nếu có) để không bao giờ bị kẹt
+        if (state.activeController) {
+          state.activeController.abort();
+        }
+        const ctrl = new AbortController();
+        state.activeController = ctrl;
 
-        if (pushHistory) {
-          state.history = state.history.slice(0, state.historyIndex + 1);
+        hideKeyboard();
+        state.currentUrl = targetUrl;
+        ui.omnibox.textContent = targetUrl;
+        ui.homeScreen.style.display = "none";
+        ui.browserScreen.style.display = "block";
+        ui.statusStrip.classList.add("loading");
+
+        if (recordHistory) {
+          state.history = state.history.slice(0, state.historyPos + 1);
           state.history.push(targetUrl);
-          state.historyIndex = state.history.length - 1;
+          state.historyPos = state.history.length - 1;
         }
 
-        const ytMatch = targetUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-        if (ytMatch) {
-          els.iframe.removeAttribute("srcdoc");
-          els.iframe.src = `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?autoplay=1`;
-          els.loadingBar.style.display = "none";
+        // Tự động chuyển link YouTube sang dạng Embed nhẹ
+        const yt = targetUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+        if (yt) {
+          ui.iframe.removeAttribute("srcdoc");
+          ui.iframe.src = `https://www.youtube-nocookie.com/embed/${yt[1]}?autoplay=1`;
+          ui.statusStrip.classList.remove("loading");
           return;
         }
 
-        if (!state.proxyEnabled || targetUrl.includes("google.com/search?igu=1")) {
-          els.iframe.removeAttribute("srcdoc");
-          els.iframe.src = targetUrl;
-          els.loadingBar.style.display = "none";
+        const mode = MODES[state.modeIndex];
+
+        // Nếu đang ở chế độ Direct Iframe hoặc mở Google ?igu=1
+        if (mode === "direct" || targetUrl.includes("google.com/search?igu=1")) {
+          ui.iframe.removeAttribute("srcdoc");
+          ui.iframe.src = targetUrl;
+          ui.statusStrip.classList.remove("loading");
           return;
         }
 
         try {
-          let html = await fetchHtmlWithFallback(targetUrl);
-          html = html.replace(/<meta[^>]*http-equiv=["']?Content-Security-Policy["']?[^>]*>/gi, "");
-          const bridgeCode = buildInjectedBridgeScript(targetUrl);
-          if (/<head[^>]*>/i.test(html)) {
-            html = html.replace(/<head[^>]*>/i, (match) => match + bridgeCode);
+          if (mode === "reader") {
+            const readerDoc = await fetchReaderView(targetUrl, ctrl.signal);
+            if (ctrl.signal.aborted) return;
+            ui.iframe.removeAttribute("src");
+            ui.iframe.srcdoc = readerDoc;
           } else {
-            html = bridgeCode + html;
+            // Chế độ Smart Web (Lọc sạch JS rác + Tiêm cầu nối bàn phím ảo)
+            const rawHtml = await fetchViaSmartProxy(targetUrl, ctrl.signal);
+            if (ctrl.signal.aborted) return;
+            const cleanDoc = sanitizeAndInjectHtml(rawHtml, targetUrl);
+            ui.iframe.removeAttribute("src");
+            ui.iframe.srcdoc = cleanDoc;
           }
-          els.iframe.removeAttribute("src");
-          els.iframe.srcdoc = html;
         } catch (err) {
-          els.iframe.removeAttribute("srcdoc");
-          els.iframe.src = targetUrl;
+          if (ctrl.signal.aborted) return;
+          // Nếu Proxy bị chặn thì chuyển sang mở Iframe trực tiếp
+          ui.iframe.removeAttribute("srcdoc");
+          ui.iframe.src = targetUrl;
         } finally {
-          els.loadingBar.style.display = "none";
+          if (!ctrl.signal.aborted) {
+            ui.statusStrip.classList.remove("loading");
+          }
         }
       }
 
-      function goHome() {
-        closeKeyboard();
-        els.loadingBar.style.display = "none";
-        els.webView.style.display = "none";
-        els.homeView.style.display = "flex";
-        els.omnibox.textContent = "Chạm để nhập từ khóa hoặc địa chỉ web...";
+      // QUAY VỀ TRANG BẮT ĐẦU TỨC THÌ
+      function returnToHome() {
+        if (state.activeController) {
+          state.activeController.abort();
+          state.activeController = null;
+        }
+        hideKeyboard();
+        ui.statusStrip.classList.remove("loading");
+        ui.iframe.removeAttribute("srcdoc");
+        ui.iframe.src = "about:blank";
+        ui.browserScreen.style.display = "none";
+        ui.homeScreen.style.display = "flex";
+        ui.omnibox.textContent = "Chạm để nhập từ khóa hoặc địa chỉ web...";
       }
 
+      // NHẬN TÍN HIỆU TỪ TRANG WEB TRONG IFRAME
       window.addEventListener("message", (e) => {
-        const data = e.data || {};
-        if (data.type === "TYWS_OPEN_KB_FROM_WEB") {
-          openKeyboard("webpage-input", data.value, data.label);
-        } else if (data.type === "TYWS_NAVIGATE" && data.url) {
-          navigateTo(data.url, true);
+        const msg = e.data || {};
+        if (msg.type === "TYWS_REQUEST_KEYBOARD") {
+          showKeyboard("web-input", msg.value, msg.label);
+        } else if (msg.type === "TYWS_OPEN_URL" && msg.url) {
+          openUrl(msg.url, true);
+        } else if (msg.type === "TYWS_FALLBACK_SITE_SEARCH") {
+          const q = (msg.query || state.kbText || "").trim();
+          if (q) openUrl(buildSiteSearchUrl(state.currentUrl, q), true);
         }
       });
 
-      // Bắt đồng thời touchstart, pointerdown và click với cơ chế chống lặp 250ms
-      function bindTap(el, handler) {
-        if (!el) return;
-        let lastTriggered = 0;
-        const invoke = (e) => {
-          const now = Date.now();
-          if (now - lastTriggered < 250) return;
-          lastTriggered = now;
-          if (e.cancelable) e.preventDefault();
-          e.stopPropagation();
-          handler(e);
-        };
-        el.addEventListener("touchstart", invoke, { passive: false });
-        el.addEventListener("pointerdown", invoke, { passive: false });
-        el.addEventListener("click", invoke, false);
-      }
+      // SỰ KIỆN CHO THANH CÔNG CỤ VÀ TRANG CHỦ (DÙNG CLICK CHUẨN ĐỂ KHÔNG KẸT CUỘN TRANG)
+      document.getElementById("btn-home").addEventListener("click", returnToHome);
 
-      bindTap(document.getElementById("btn-home"), () => goHome());
-      bindTap(document.getElementById("btn-back"), () => {
-        if (state.historyIndex > 0) {
-          state.historyIndex--;
-          navigateTo(state.history[state.historyIndex], false);
+      document.getElementById("btn-back").addEventListener("click", () => {
+        if (state.historyPos > 0) {
+          state.historyPos--;
+          openUrl(state.history[state.historyPos], false);
         } else {
-          goHome();
-        }
-      });
-      bindTap(document.getElementById("btn-forward"), () => {
-        if (state.historyIndex < state.history.length - 1) {
-          state.historyIndex++;
-          navigateTo(state.history[state.historyIndex], false);
-        }
-      });
-      bindTap(document.getElementById("btn-reload"), () => {
-        if (state.currentUrl) navigateTo(state.currentUrl, false);
-      });
-
-      bindTap(els.omnibox, () => {
-        openKeyboard("omnibox", state.currentUrl || "", "🌐 Nhập URL hoặc từ khóa");
-      });
-
-      bindTap(document.getElementById("home-search-trigger"), () => {
-        openKeyboard("omnibox", "", "🔍 Tìm kiếm hoặc nhập địa chỉ web");
-      });
-
-      bindTap(els.btnProxy, () => {
-        state.proxyEnabled = !state.proxyEnabled;
-        els.btnProxy.textContent = state.proxyEnabled ? "🛡️ Proxy: BẬT" : "⚡ Trực tiếp";
-        els.btnProxy.classList.toggle("active-mode", state.proxyEnabled);
-        if (state.currentUrl && els.webView.style.display === "flex") {
-          navigateTo(state.currentUrl, false);
+          returnToHome();
         }
       });
 
-      bindTap(document.getElementById("btn-toggle-kb"), () => {
-        if (els.keyboard.classList.contains("visible")) {
-          closeKeyboard();
+      document.getElementById("btn-forward").addEventListener("click", () => {
+        if (state.historyPos < state.history.length - 1) {
+          state.historyPos++;
+          openUrl(state.history[state.historyPos], false);
+        }
+      });
+
+      document.getElementById("btn-reload").addEventListener("click", () => {
+        if (state.currentUrl && ui.browserScreen.style.display === "block") {
+          openUrl(state.currentUrl, false);
+        }
+      });
+
+      ui.omnibox.addEventListener("click", () => {
+        showKeyboard("omnibox", state.currentUrl || "", "🌐 Thanh địa chỉ / Tìm kiếm");
+      });
+
+      document.getElementById("big-search-box").addEventListener("click", () => {
+        showKeyboard("omnibox", "", "🔍 Nhập từ khóa hoặc địa chỉ web");
+      });
+
+      ui.btnMode.addEventListener("click", () => {
+        state.modeIndex = (state.modeIndex + 1) % MODES.length;
+        const m = MODES[state.modeIndex];
+        ui.btnMode.className = "bar-btn";
+        if (m === "smart") {
+          ui.btnMode.classList.add("mode-smart");
+          ui.btnMode.textContent = "🛡️ Smart Web";
+        } else if (m === "reader") {
+          ui.btnMode.classList.add("mode-reader");
+          ui.btnMode.textContent = "📖 Đọc Sạch";
         } else {
-          openKeyboard("omnibox", "", "🌐 Nhập URL hoặc từ khóa");
+          ui.btnMode.classList.add("mode-direct");
+          ui.btnMode.textContent = "⚡ Trực Tiếp";
+        }
+        if (state.currentUrl && ui.browserScreen.style.display === "block") {
+          openUrl(state.currentUrl, false);
         }
       });
 
-      bindTap(document.getElementById("kb-btn-close"), () => closeKeyboard());
-
-      bindTap(document.getElementById("kb-btn-search-google"), () => {
-        const q = state.kbBuffer.trim();
-        if (q) {
-          navigateTo("https://www.google.com/search?igu=1&q=" + encodeURIComponent(q), true);
+      document.getElementById("btn-kb").addEventListener("click", () => {
+        if (ui.vkPanel.classList.contains("open")) {
+          hideKeyboard();
+        } else {
+          showKeyboard("omnibox", "", "🌐 Nhập từ khóa hoặc URL");
         }
       });
 
-      document.querySelectorAll(".bm-card").forEach((btn) => {
-        bindTap(btn, () => {
+      document.getElementById("vk-close").addEventListener("click", hideKeyboard);
+
+      document.getElementById("vk-search-gg").addEventListener("click", () => {
+        const q = state.kbText.trim();
+        if (q) openUrl(`https://www.google.com/search?igu=1&q=${encodeURIComponent(q)}`, true);
+      });
+
+      document.getElementById("vk-search-site").addEventListener("click", () => {
+        const q = state.kbText.trim();
+        if (!q) return;
+        if (state.currentUrl && ui.browserScreen.style.display === "block") {
+          openUrl(buildSiteSearchUrl(state.currentUrl, q), true);
+        } else {
+          openUrl(`https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`, true);
+        }
+      });
+
+      document.querySelectorAll(".site-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
           const url = btn.getAttribute("data-url");
-          if (url) navigateTo(url, true);
+          if (url) openUrl(url, true);
         });
       });
 
-      document.querySelectorAll(".kb-key").forEach((keyBtn) => {
-        bindTap(keyBtn, () => {
-          const char = keyBtn.getAttribute("data-char");
-          const action = keyBtn.getAttribute("data-action");
+      // SỰ KIỆN BÀN PHÍM ẢO: DÙNG EVENT DELEGATION POINTERDOWN (PHẢN HỒI 0MS, KHÔNG BAO GIỜ KẸT)
+      ui.vkPanel.addEventListener("pointerdown", (e) => {
+        const key = e.target.closest(".vk-key");
+        if (!key) return;
+        e.preventDefault();
+        e.stopPropagation();
 
-          if (char !== null) {
-            const outChar = state.shiftEnabled && char.length === 1 ? char.toUpperCase() : char;
-            state.kbBuffer = processKeyInput(state.kbBuffer, outChar, state.telexEnabled);
-            if (state.shiftEnabled) {
-              state.shiftEnabled = false;
-              els.keyShift.classList.remove("action-toggle-on");
-            }
-            renderKeyboardBuffer();
-            return;
-          }
+        key.classList.add("pressed");
+        setTimeout(() => key.classList.remove("pressed"), 120);
 
-          if (action === "backspace") {
-            const chars = Array.from(state.kbBuffer);
-            chars.pop();
-            state.kbBuffer = chars.join("");
-            renderKeyboardBuffer();
-          } else if (action === "clear") {
-            state.kbBuffer = "";
-            renderKeyboardBuffer();
-          } else if (action === "toggle-telex") {
-            state.telexEnabled = !state.telexEnabled;
-            els.keyTelex.textContent = state.telexEnabled ? "VN Telex: BẬT" : "VN Telex: TẮT";
-            els.keyTelex.classList.toggle("action-toggle-on", state.telexEnabled);
-          } else if (action === "toggle-shift") {
-            state.shiftEnabled = !state.shiftEnabled;
-            els.keyShift.classList.toggle("action-toggle-on", state.shiftEnabled);
-          } else if (action === "submit") {
-            if (state.kbTarget === "omnibox") {
-              navigateTo(state.kbBuffer, true);
-            } else if (state.kbTarget === "webpage-input" && els.iframe.contentWindow) {
-              els.iframe.contentWindow.postMessage({ type: "TYWS_SUBMIT_ACTIVE_INPUT" }, "*");
-              closeKeyboard();
-            }
+        const ch = key.getAttribute("data-char");
+        const act = key.getAttribute("data-act");
+
+        if (ch !== null) {
+          const out = state.shift && ch.length === 1 ? ch.toUpperCase() : ch;
+          state.kbText = typeChar(state.kbText, out, state.telex);
+          if (state.shift) {
+            state.shift = false;
+            ui.vkShift.classList.remove("k-active");
           }
-        });
+          syncKeyboardOutput();
+          return;
+        }
+
+        if (act === "backspace") {
+          const chars = Array.from(state.kbText);
+          chars.pop();
+          state.kbText = chars.join("");
+          syncKeyboardOutput();
+        } else if (act === "clear") {
+          state.kbText = "";
+          syncKeyboardOutput();
+        } else if (act === "telex") {
+          state.telex = !state.telex;
+          ui.vkTelex.textContent = state.telex ? "Telex: BẬT" : "Telex: TẮT";
+          ui.vkTelex.classList.toggle("k-active", state.telex);
+        } else if (act === "shift") {
+          state.shift = !state.shift;
+          ui.vkShift.classList.toggle("k-active", state.shift);
+        } else if (act === "enter") {
+          if (state.kbTarget === "omnibox") {
+            openUrl(state.kbText, true);
+          } else if (state.kbTarget === "web-input" && ui.iframe.contentWindow) {
+            ui.iframe.contentWindow.postMessage({ type: "TYWS_TRIGGER_SUBMIT" }, "*");
+            hideKeyboard();
+          }
+        }
       });
     })();
   </script>
