@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>TYWS Hub Browser Pro</title>
-  <script defer src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
   <style>
     :root {
       --bg-dark: #0f172a;
@@ -19,14 +18,17 @@
       --cast-controls-safe-area-height: 100vh !important;
     }
 
-    /* Chặn triệt để lớp phủ <touch-controls> của Google Cast SDK */
+    /* Vô hiệu hóa lớp phủ <touch-controls> bằng CSS mà không xóa khỏi DOM để tránh treo Cast SDK */
     touch-controls,
     cast-media-player {
-      display: none !important;
       pointer-events: none !important;
+      opacity: 0 !important;
       visibility: hidden !important;
-      width: 0 !important;
-      height: 0 !important;
+      position: fixed !important;
+      top: -9999px !important;
+      left: -9999px !important;
+      width: 1px !important;
+      height: 1px !important;
       z-index: -9999 !important;
     }
 
@@ -48,17 +50,16 @@
       font-family: Arial, Helvetica, sans-serif;
     }
 
-    #app-shell {
-      position: relative;
-      z-index: 99999;
+    main#app-shell {
+      position: relative !important;
+      z-index: 999999 !important;
       display: flex;
       flex-direction: column;
       width: 100vw;
       height: 100vh;
-      pointer-events: auto;
+      pointer-events: auto !important;
     }
 
-    /* THANH ĐIỀU HƯỚNG CỐ ĐỊNH TRÊN CÙNG */
     #top-bar {
       height: 50px;
       background: var(--bg-panel);
@@ -68,7 +69,7 @@
       gap: 6px;
       padding: 0 8px;
       flex-shrink: 0;
-      z-index: 100002;
+      z-index: 1000002;
     }
 
     .nav-btn {
@@ -86,6 +87,7 @@
       justify-content: center;
       gap: 4px;
       cursor: pointer;
+      pointer-events: auto !important;
     }
 
     .nav-btn:active {
@@ -112,6 +114,7 @@
       white-space: nowrap;
       text-overflow: ellipsis;
       cursor: pointer;
+      pointer-events: auto !important;
     }
 
     #omnibox.focused {
@@ -119,7 +122,6 @@
       box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
     }
 
-    /* VÙNG NỘI DUNG CHÍNH */
     #viewport-area {
       flex: 1;
       position: relative;
@@ -128,7 +130,6 @@
       background: #111827;
     }
 
-    /* TRANG BẮT ĐẦU (HOME SCREEN) */
     #home-view {
       position: absolute;
       inset: 0;
@@ -184,6 +185,7 @@
       font-size: 16px;
       color: var(--text-muted);
       cursor: pointer;
+      pointer-events: auto !important;
     }
 
     .bookmarks-grid {
@@ -205,14 +207,13 @@
       justify-content: center;
       gap: 8px;
       cursor: pointer;
+      pointer-events: auto !important;
     }
 
     .bm-card:active {
       background: var(--bg-key-active);
-      transform: scale(0.98);
     }
 
-    /* KHUNG DUYỆT WEB (IFRAME) */
     #web-view {
       position: absolute;
       inset: 0;
@@ -246,20 +247,20 @@
       100% { background-position: -200% 0; }
     }
 
-    /* BÀN PHÍM ẢO NỔI ĐA NĂNG (HIỆN TRÊN MỌI WEBSITE) */
     #virtual-keyboard {
       position: fixed;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(15, 23, 42, 0.97);
+      background: rgba(15, 23, 42, 0.98);
       border-top: 2px solid var(--accent);
       padding: 6px 8px 8px;
       display: none;
       flex-direction: column;
       gap: 5px;
-      z-index: 100005;
+      z-index: 1000005;
       box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.6);
+      pointer-events: auto !important;
     }
 
     #virtual-keyboard.visible {
@@ -331,6 +332,7 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
+      pointer-events: auto !important;
     }
 
     .kb-key:active {
@@ -356,186 +358,148 @@
   </style>
 </head>
 <body>
-  <!-- Thẻ video ẩn giữ tương thích với Cast Receiver SDK -->
   <video id="cast-media" hidden playsinline muted aria-hidden="true"></video>
 
-  <div id="app-shell">
-    <!-- THANH ĐIỀU HƯỚNG CỐ ĐỊNH -->
+  <main id="app-shell">
     <header id="top-bar">
-      <button class="nav-btn" id="btn-home" title="Về trang bắt đầu">🏠 Home</button>
-      <button class="nav-btn" id="btn-back" title="Quay lại">◀</button>
-      <button class="nav-btn" id="btn-forward" title="Tiến tới">▶</button>
-      <button class="nav-btn" id="btn-reload" title="Tải lại">🔄</button>
+      <button class="nav-btn" id="btn-home" type="button">🏠 Home</button>
+      <button class="nav-btn" id="btn-back" type="button">◀</button>
+      <button class="nav-btn" id="btn-forward" type="button">▶</button>
+      <button class="nav-btn" id="btn-reload" type="button">🔄</button>
 
-      <div id="omnibox">Chạm để nhập từ khóa hoặc địa chỉ web...</div>
+      <div id="omnibox" role="button">Chạm để nhập từ khóa hoặc địa chỉ web...</div>
 
-      <button class="nav-btn active-mode" id="btn-proxy-mode" title="Bật/Tắt chế độ tiêm bàn phím vào mọi web">🛡️ Proxy: BẬT</button>
-      <button class="nav-btn" id="btn-toggle-kb" title="Hiện/Ẩn bàn phím">⌨️ Phím</button>
+      <button class="nav-btn active-mode" id="btn-proxy-mode" type="button">🛡️ Proxy: BẬT</button>
+      <button class="nav-btn" id="btn-toggle-kb" type="button">⌨️ Phím</button>
     </header>
 
-    <!-- KHU VỰC HIỂN THỊ -->
-    <main id="viewport-area">
+    <div id="viewport-area">
       <div id="loading-bar"></div>
 
-      <!-- MÀN HÌNH BẮT ĐẦU -->
       <section id="home-view">
         <div class="hero-box">
           <div class="hero-header">
             <h1 class="hero-title">🌐 TYWS Hub Browser Pro</h1>
-            <span class="status-badge" id="cast-status">Độc lập • Chạm là gõ</span>
+            <span class="status-badge" id="cast-status">Đang kết nối Cast...</span>
           </div>
-          <div id="home-search-trigger">
+          <div id="home-search-trigger" role="button">
             <span>🔍 Bạn muốn tìm gì hoặc mở trang web nào? (Chạm vào đây)</span>
             <span style="color: var(--accent); font-weight: 700;">Gõ phím ⌨️</span>
           </div>
         </div>
 
         <div class="bookmarks-grid">
-          <button class="bm-card" data-url="https://www.google.com/search?igu=1">🔍 Google</button>
-          <button class="bm-card" data-url="https://html.duckduckgo.com/html/">🦆 DuckDuckGo</button>
-          <button class="bm-card" data-url="https://vi.m.wikipedia.org">📖 Wikipedia</button>
-          <button class="bm-card" data-url="https://vnexpress.net">📰 VnExpress</button>
-          <button class="bm-card" data-url="https://dantri.com.vn">📰 Dân Trí</button>
-          <button class="bm-card" data-url="https://tuoitre.vn">📰 Tuổi Trẻ</button>
-          <button class="bm-card" data-url="https://tinhte.vn">📱 Tinh Tế</button>
-          <button class="bm-card" data-url="https://cafef.vn">📈 CafeF</button>
+          <button class="bm-card" type="button" data-url="https://www.google.com/search?igu=1">🔍 Google</button>
+          <button class="bm-card" type="button" data-url="https://html.duckduckgo.com/html/">🦆 DuckDuckGo</button>
+          <button class="bm-card" type="button" data-url="https://vi.m.wikipedia.org">📖 Wikipedia</button>
+          <button class="bm-card" type="button" data-url="https://vnexpress.net">📰 VnExpress</button>
+          <button class="bm-card" type="button" data-url="https://dantri.com.vn">📰 Dân Trí</button>
+          <button class="bm-card" type="button" data-url="https://tuoitre.vn">📰 Tuổi Trẻ</button>
+          <button class="bm-card" type="button" data-url="https://tinhte.vn">📱 Tinh Tế</button>
+          <button class="bm-card" type="button" data-url="https://cafef.vn">📈 CafeF</button>
         </div>
       </section>
 
-      <!-- KHUNG TRÌNH DUYỆT WEB -->
       <section id="web-view">
         <iframe id="browser-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
       </section>
-    </main>
+    </div>
 
-    <!-- BÀN PHÍM ẢO NỔI (DÙNG CHUNG CHO THANH ĐỊA CHỈ & Ô NHẬP TRÊN MỌI WEBSITE) -->
     <section id="virtual-keyboard">
       <div id="kb-preview-bar">
         <span id="kb-target-label">Thanh địa chỉ</span>
         <div id="kb-buffer-display"><span id="kb-buffer-text"></span><span id="kb-cursor"></span></div>
-        <button class="nav-btn" id="kb-btn-search-google" style="background:#0284c7;">🔍 Tìm Google</button>
-        <button class="nav-btn" id="kb-btn-close" style="background:#334155;">✖ Ẩn</button>
+        <button class="nav-btn" id="kb-btn-search-google" type="button" style="background:#0284c7;">🔍 Tìm Google</button>
+        <button class="nav-btn" id="kb-btn-close" type="button" style="background:#334155;">✖ Ẩn</button>
       </div>
 
-      <!-- Hàng phím số & ký tự URL -->
       <div class="kb-row">
-        <button class="kb-key" data-char="1">1</button>
-        <button class="kb-key" data-char="2">2</button>
-        <button class="kb-key" data-char="3">3</button>
-        <button class="kb-key" data-char="4">4</button>
-        <button class="kb-key" data-char="5">5</button>
-        <button class="kb-key" data-char="6">6</button>
-        <button class="kb-key" data-char="7">7</button>
-        <button class="kb-key" data-char="8">8</button>
-        <button class="kb-key" data-char="9">9</button>
-        <button class="kb-key" data-char="0">0</button>
-        <button class="kb-key" data-char="-">-</button>
-        <button class="kb-key" data-char=":">:</button>
-        <button class="kb-key" data-char="/">/</button>
+        <button class="kb-key" type="button" data-char="1">1</button>
+        <button class="kb-key" type="button" data-char="2">2</button>
+        <button class="kb-key" type="button" data-char="3">3</button>
+        <button class="kb-key" type="button" data-char="4">4</button>
+        <button class="kb-key" type="button" data-char="5">5</button>
+        <button class="kb-key" type="button" data-char="6">6</button>
+        <button class="kb-key" type="button" data-char="7">7</button>
+        <button class="kb-key" type="button" data-char="8">8</button>
+        <button class="kb-key" type="button" data-char="9">9</button>
+        <button class="kb-key" type="button" data-char="0">0</button>
+        <button class="kb-key" type="button" data-char="-">-</button>
+        <button class="kb-key" type="button" data-char=":">:</button>
+        <button class="kb-key" type="button" data-char="/">/</button>
       </div>
 
-      <!-- Hàng QWERTY 1 -->
       <div class="kb-row">
-        <button class="kb-key" data-char="q">q</button>
-        <button class="kb-key" data-char="w">w</button>
-        <button class="kb-key" data-char="e">e</button>
-        <button class="kb-key" data-char="r">r</button>
-        <button class="kb-key" data-char="t">t</button>
-        <button class="kb-key" data-char="y">y</button>
-        <button class="kb-key" data-char="u">u</button>
-        <button class="kb-key" data-char="i">i</button>
-        <button class="kb-key" data-char="o">o</button>
-        <button class="kb-key" data-char="p">p</button>
-        <button class="kb-key wide-2" data-action="backspace">⌫ Xóa</button>
+        <button class="kb-key" type="button" data-char="q">q</button>
+        <button class="kb-key" type="button" data-char="w">w</button>
+        <button class="kb-key" type="button" data-char="e">e</button>
+        <button class="kb-key" type="button" data-char="r">r</button>
+        <button class="kb-key" type="button" data-char="t">t</button>
+        <button class="kb-key" type="button" data-char="y">y</button>
+        <button class="kb-key" type="button" data-char="u">u</button>
+        <button class="kb-key" type="button" data-char="i">i</button>
+        <button class="kb-key" type="button" data-char="o">o</button>
+        <button class="kb-key" type="button" data-char="p">p</button>
+        <button class="kb-key wide-2" type="button" data-action="backspace">⌫ Xóa</button>
       </div>
 
-      <!-- Hàng QWERTY 2 -->
       <div class="kb-row">
-        <button class="kb-key" data-char="a">a</button>
-        <button class="kb-key" data-char="s">s</button>
-        <button class="kb-key" data-char="d">d</button>
-        <button class="kb-key" data-char="f">f</button>
-        <button class="kb-key" data-char="g">g</button>
-        <button class="kb-key" data-char="h">h</button>
-        <button class="kb-key" data-char="j">j</button>
-        <button class="kb-key" data-char="k">k</button>
-        <button class="kb-key" data-char="l">l</button>
-        <button class="kb-key" data-char=".">.</button>
-        <button class="kb-key wide-2 action-go" data-action="submit">Đi / Enter ↵</button>
+        <button class="kb-key" type="button" data-char="a">a</button>
+        <button class="kb-key" type="button" data-char="s">s</button>
+        <button class="kb-key" type="button" data-char="d">d</button>
+        <button class="kb-key" type="button" data-char="f">f</button>
+        <button class="kb-key" type="button" data-char="g">g</button>
+        <button class="kb-key" type="button" data-char="h">h</button>
+        <button class="kb-key" type="button" data-char="j">j</button>
+        <button class="kb-key" type="button" data-char="k">k</button>
+        <button class="kb-key" type="button" data-char="l">l</button>
+        <button class="kb-key" type="button" data-char=".">.</button>
+        <button class="kb-key wide-2 action-go" type="button" data-action="submit">Đi / Enter ↵</button>
       </div>
 
-      <!-- Hàng QWERTY 3 + Chức năng -->
       <div class="kb-row">
-        <button class="kb-key wide-2 action-toggle-on" id="key-telex" data-action="toggle-telex">VN Telex: BẬT</button>
-        <button class="kb-key" id="key-shift" data-action="toggle-shift">⇧ Hoa</button>
-        <button class="kb-key" data-char="z">z</button>
-        <button class="kb-key" data-char="x">x</button>
-        <button class="kb-key" data-char="c">c</button>
-        <button class="kb-key" data-char="v">v</button>
-        <button class="kb-key" data-char="b">b</button>
-        <button class="kb-key" data-char="n">n</button>
-        <button class="kb-key" data-char="m">m</button>
-        <button class="kb-key wide-3" data-char=" ">Khoảng trắng</button>
-        <button class="kb-key" data-char=".com">.com</button>
-        <button class="kb-key action-danger" data-action="clear">Xóa hết</button>
+        <button class="kb-key wide-2 action-toggle-on" id="key-telex" type="button" data-action="toggle-telex">VN Telex: BẬT</button>
+        <button class="kb-key" id="key-shift" type="button" data-action="toggle-shift">⇧ Hoa</button>
+        <button class="kb-key" type="button" data-char="z">z</button>
+        <button class="kb-key" type="button" data-char="x">x</button>
+        <button class="kb-key" type="button" data-char="c">c</button>
+        <button class="kb-key" type="button" data-char="v">v</button>
+        <button class="kb-key" type="button" data-char="b">b</button>
+        <button class="kb-key" type="button" data-char="n">n</button>
+        <button class="kb-key" type="button" data-char="m">m</button>
+        <button class="kb-key wide-3" type="button" data-char=" ">Khoảng trắng</button>
+        <button class="kb-key" type="button" data-char=".com">.com</button>
+        <button class="kb-key action-danger" type="button" data-action="clear">Xóa hết</button>
       </div>
     </section>
-  </div>
+  </main>
 
+  <!-- Nạp đồng bộ Cast SDK và gọi start() ngay lập tức để tránh lỗi RequestTimeout 10s -->
+  <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+  <script>
+    (function initCastImmediately() {
+      try {
+        if (window.cast && cast.framework) {
+          const context = cast.framework.CastReceiverContext.getInstance();
+          const options = new cast.framework.CastReceiverOptions();
+          options.disableIdleTimeout = true;
+          options.maxInactivity = 3600;
+          context.start(options);
+          const badge = document.getElementById("cast-status");
+          if (badge) badge.textContent = "Cast đã sẵn sàng • Chạm để gõ";
+        }
+      } catch (err) {
+        console.warn("Cast init error:", err);
+      }
+    })();
+  </script>
+
+  <!-- Logic trình duyệt và bàn phím ảo -->
   <script>
     (function () {
       "use strict";
 
-      // =========================================================================
-      // 1. KHỞI TẠO GOOGLE CAST SDK & CHỐNG VĂNG APP (STANDALONE KEEP-ALIVE)
-      // =========================================================================
-      function purgeTouchControls() {
-        document.querySelectorAll("touch-controls").forEach((el) => el.remove());
-      }
-      purgeTouchControls();
-      const observer = new MutationObserver(purgeTouchControls);
-      observer.observe(document.documentElement, { childList: true, subtree: true });
-
-      window.addEventListener("load", () => {
-        if (window.cast && cast.framework) {
-          try {
-            const context = cast.framework.CastReceiverContext.getInstance();
-            const options = new cast.framework.CastReceiverOptions();
-            options.disableIdleTimeout = true;
-            options.touchScreenOptimizedApp = true;
-            options.maxInactivity = 86400; // 24 giờ
-            if (cast.framework.ui && cast.framework.ui.UiConfig) {
-              options.uiConfig = new cast.framework.ui.UiConfig();
-              options.uiConfig.touchScreenOptimizedApp = true;
-            }
-            context.start(options);
-            document.getElementById("cast-status").textContent = "Cast Sẵn sàng • Chạy Độc Lập";
-          } catch (err) {
-            console.warn("Cast init warning:", err);
-          }
-        }
-      });
-
-      // Giữ kết nối âm thanh câm (Silent Audio Oscillator) để Nest Hub không bao giờ ngủ
-      let keepAliveStarted = false;
-      function startAudioKeepAlive() {
-        if (keepAliveStarted) return;
-        try {
-          const AudioCtx = window.AudioContext || window.webkitAudioContext;
-          const ctx = new AudioCtx();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          gain.gain.value = 0.00001;
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          keepAliveStarted = true;
-        } catch (e) {}
-      }
-
-      // =========================================================================
-      // 2. BỘ GÕ TIẾNG VIỆT TELEX TÍCH HỢP
-      // =========================================================================
+      // Bộ gõ Tiếng Việt Telex
       const VOWEL_TABLE = {
         a: ["a", "à", "á", "ả", "ã", "ạ"],
         ă: ["ă", "ằ", "ắ", "ẳ", "ẵ", "ặ"],
@@ -571,30 +535,19 @@
         const k = key.toLowerCase();
         const chars = Array.from(word);
 
-        // Xử lý dd -> đ
         if (k === "d" && chars.length >= 1) {
           const last = chars[chars.length - 1];
           if (last === "d") { chars[chars.length - 1] = "đ"; return chars.join(""); }
           if (last === "D") { chars[chars.length - 1] = "Đ"; return chars.join(""); }
         }
 
-        // Xử lý mũ/móc: aa->â, aw->ă, ee->ê, oo->ô, ow->ơ, uw->ư
         if (["a", "e", "o", "w"].includes(k)) {
           for (let i = chars.length - 1; i >= 0; i--) {
             const info = CHAR_TO_BASE[chars[i]];
             if (!info) continue;
-            if (k === "a" && info.base === "a") {
-              chars[i] = transformChar(chars[i], "â", info.tone);
-              return chars.join("");
-            }
-            if (k === "e" && info.base === "e") {
-              chars[i] = transformChar(chars[i], "ê", info.tone);
-              return chars.join("");
-            }
-            if (k === "o" && info.base === "o") {
-              chars[i] = transformChar(chars[i], "ô", info.tone);
-              return chars.join("");
-            }
+            if (k === "a" && info.base === "a") { chars[i] = transformChar(chars[i], "â", info.tone); return chars.join(""); }
+            if (k === "e" && info.base === "e") { chars[i] = transformChar(chars[i], "ê", info.tone); return chars.join(""); }
+            if (k === "o" && info.base === "o") { chars[i] = transformChar(chars[i], "ô", info.tone); return chars.join(""); }
             if (k === "w") {
               if (info.base === "a") { chars[i] = transformChar(chars[i], "ă", info.tone); return chars.join(""); }
               if (info.base === "o") { chars[i] = transformChar(chars[i], "ơ", info.tone); return chars.join(""); }
@@ -603,13 +556,11 @@
           }
         }
 
-        // Xử lý dấu thanh: s, f, r, x, j, z
         if (Object.prototype.hasOwnProperty.call(TONE_MAP, k)) {
           const targetTone = TONE_MAP[k];
           let vowelIndices = [];
           for (let i = 0; i < chars.length; i++) {
             if (CHAR_TO_BASE[chars[i]]) {
-              // Bỏ qua 'u' trong 'qu' hoặc 'i' trong 'gi' nếu sau đó còn nguyên âm
               const prev = i > 0 ? chars[i - 1].toLowerCase() : "";
               if ((prev === "q" && chars[i].toLowerCase() === "u") ||
                   (prev === "g" && chars[i].toLowerCase() === "i" && i + 1 < chars.length && CHAR_TO_BASE[chars[i + 1]])) {
@@ -619,7 +570,6 @@
             }
           }
           if (vowelIndices.length > 0) {
-            // Ưu tiên nguyên âm có mũ/móc (ă, â, ê, ô, ơ, ư)
             let chosenIdx = vowelIndices[0];
             const priorityVowel = vowelIndices.find((idx) =>
               ["ă", "â", "ê", "ô", "ơ", "ư"].includes(CHAR_TO_BASE[chars[idx]].base)
@@ -627,7 +577,6 @@
             if (priorityVowel !== undefined) {
               chosenIdx = priorityVowel;
             } else if (vowelIndices.length === 2) {
-              // Nếu có phụ âm cuối thì đánh vào nguyên âm thứ 2
               const hasConsonantEnd = vowelIndices[1] < chars.length - 1;
               chosenIdx = hasConsonantEnd ? vowelIndices[1] : vowelIndices[0];
             } else if (vowelIndices.length >= 3) {
@@ -636,7 +585,6 @@
 
             const currentInfo = CHAR_TO_BASE[chars[chosenIdx]];
             if (currentInfo.tone === targetTone && k !== "z") {
-              // Bấm lặp lần 2 thì trả về chữ gốc + phím vừa bấm
               chars[chosenIdx] = transformChar(chars[chosenIdx], currentInfo.base, 0);
               return chars.join("") + key;
             }
@@ -644,27 +592,20 @@
             return chars.join("");
           }
         }
-
         return word + key;
       }
 
       function processKeyInput(currentText, key, useTelex) {
-        if (!useTelex || key === " " || key.length > 1) {
-          return currentText + key;
-        }
+        if (!useTelex || key === " " || key.length > 1) return currentText + key;
         const lastSpace = currentText.lastIndexOf(" ");
         const prefix = lastSpace >= 0 ? currentText.slice(0, lastSpace + 1) : "";
         const lastWord = lastSpace >= 0 ? currentText.slice(lastSpace + 1) : currentText;
-        // Nếu đang gõ URL có '://' hoặc 'www.' thì tự bỏ qua Telex cho từ đó
         if (lastWord.includes("://") || lastWord.includes("www.") || lastWord.includes(".com")) {
           return currentText + key;
         }
         return prefix + applyTelexToWord(lastWord, key);
       }
 
-      // =========================================================================
-      // 3. QUẢN LÝ TRẠNG THÁI TRÌNH DUYỆT & CẦU NỐI BÀN PHÍM TRÊN MỌI WEBSITE
-      // =========================================================================
       const state = {
         currentUrl: "",
         history: [],
@@ -672,7 +613,7 @@
         proxyEnabled: true,
         telexEnabled: true,
         shiftEnabled: false,
-        kbTarget: "omnibox", // 'omnibox' hoặc 'webpage-input'
+        kbTarget: "omnibox",
         kbBuffer: ""
       };
 
@@ -693,7 +634,7 @@
       function openKeyboard(target, initialValue, labelText) {
         state.kbTarget = target;
         state.kbBuffer = initialValue || "";
-        els.kbTargetLabel.textContent = labelText || (target === "omnibox" ? "Thanh địa chỉ / Tìm kiếm" : "Ô nhập trên trang web");
+        els.kbTargetLabel.textContent = labelText || (target === "omnibox" ? "Thanh địa chỉ / Tìm kiếm" : "Ô nhập trên web");
         els.keyboard.classList.add("visible");
         els.omnibox.classList.toggle("focused", target === "omnibox");
         renderKeyboardBuffer();
@@ -709,7 +650,6 @@
         if (state.kbTarget === "omnibox") {
           els.omnibox.textContent = state.kbBuffer || "Chạm để nhập từ khóa hoặc địa chỉ web...";
         } else if (state.kbTarget === "webpage-input" && els.iframe.contentWindow) {
-          // Truyền trực tiếp chữ đang gõ vào ô <input> bên trong website
           els.iframe.contentWindow.postMessage({
             type: "TYWS_UPDATE_INPUT",
             value: state.kbBuffer
@@ -717,9 +657,6 @@
         }
       }
 
-      // =========================================================================
-      // 4. SMART PROXY & SCRIPT TIÊM VÀO WEBSITE (BẮT SỰ KIỆN CHẠM Ô TÌM KIẾM)
-      // =========================================================================
       function buildInjectedBridgeScript(baseUrl) {
         return `
           <base href="${baseUrl}">
@@ -733,6 +670,7 @@
           <script>
             (function() {
               let activeEl = null;
+              let lastTap = 0;
 
               function isEditableInput(el) {
                 if (!el) return false;
@@ -746,16 +684,15 @@
                 return false;
               }
 
-              // Bắt mọi thao tác chạm vào ô tìm kiếm/nhập liệu trên website
-              document.addEventListener('pointerdown', function(e) {
+              function handleInputTap(e) {
                 const target = e.target.closest('input, textarea, [contenteditable="true"], [role="searchbox"], [role="combobox"]');
                 if (target && isEditableInput(target)) {
+                  const now = Date.now();
+                  if (now - lastTap < 250) return;
+                  lastTap = now;
                   if (activeEl) activeEl.classList.remove('tyws-active-input');
                   activeEl = target;
                   activeEl.classList.add('tyws-active-input');
-                  setTimeout(() => {
-                    try { activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(err){}
-                  }, 100);
                   const currentVal = activeEl.value !== undefined ? activeEl.value : (activeEl.innerText || '');
                   const hint = activeEl.getAttribute('placeholder') || activeEl.getAttribute('name') || 'Ô tìm kiếm trên web';
                   window.parent.postMessage({
@@ -764,9 +701,12 @@
                     label: '✏️ ' + hint.slice(0, 22)
                   }, '*');
                 }
-              }, true);
+              }
 
-              // Bắt thao tác bấm vào link <a> để duyệt tiếp trong trình duyệt
+              document.addEventListener('pointerdown', handleInputTap, true);
+              document.addEventListener('touchstart', handleInputTap, true);
+              document.addEventListener('click', handleInputTap, true);
+
               document.addEventListener('click', function(e) {
                 const link = e.target.closest('a[href]');
                 if (!link) return;
@@ -780,7 +720,6 @@
                 } catch (err) {}
               }, true);
 
-              // Bắt sự kiện submit form tìm kiếm trên trang web
               document.addEventListener('submit', function(e) {
                 const form = e.target;
                 if (!form) return;
@@ -797,7 +736,6 @@
                 } catch (err) {}
               }, true);
 
-              // Nhận chữ từ bàn phím ảo của TYWS Hub Browser
               window.addEventListener('message', function(e) {
                 const data = e.data || {};
                 if (data.type === 'TYWS_UPDATE_INPUT' && activeEl) {
@@ -848,11 +786,9 @@
         const trimmed = (input || "").trim();
         if (!trimmed) return "";
         if (/^https?:\/\//i.test(trimmed)) return trimmed;
-        // Nếu có dạng tên miền (vd: vnexpress.net, tinhte.vn) và không có khoảng trắng
         if (!trimmed.includes(" ") && /^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+/.test(trimmed)) {
           return "https://" + trimmed;
         }
-        // Ngược lại: Tìm kiếm qua DuckDuckGo HTML (tương thích 100% với Proxy & Bàn phím)
         return "https://html.duckduckgo.com/html/?q=" + encodeURIComponent(trimmed);
       }
 
@@ -873,7 +809,6 @@
           state.historyIndex = state.history.length - 1;
         }
 
-        // Chuyển link YouTube watch sang dạng Embed để xem mượt trên Nest Hub 2
         const ytMatch = targetUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
         if (ytMatch) {
           els.iframe.removeAttribute("srcdoc");
@@ -882,7 +817,6 @@
           return;
         }
 
-        // Nếu tắt Proxy hoặc đang dùng Google ?igu=1 trực tiếp
         if (!state.proxyEnabled || targetUrl.includes("google.com/search?igu=1")) {
           els.iframe.removeAttribute("srcdoc");
           els.iframe.src = targetUrl;
@@ -892,7 +826,6 @@
 
         try {
           let html = await fetchHtmlWithFallback(targetUrl);
-          // Loại bỏ CSP chặn script cầu nối
           html = html.replace(/<meta[^>]*http-equiv=["']?Content-Security-Policy["']?[^>]*>/gi, "");
           const bridgeCode = buildInjectedBridgeScript(targetUrl);
           if (/<head[^>]*>/i.test(html)) {
@@ -903,7 +836,6 @@
           els.iframe.removeAttribute("src");
           els.iframe.srcdoc = html;
         } catch (err) {
-          // Tự động chuyển sang mở Iframe trực tiếp nếu Proxy bị chặn
           els.iframe.removeAttribute("srcdoc");
           els.iframe.src = targetUrl;
         } finally {
@@ -919,7 +851,6 @@
         els.omnibox.textContent = "Chạm để nhập từ khóa hoặc địa chỉ web...";
       }
 
-      // Lắng nghe tín hiệu từ các trang web bên trong Iframe gửi ra
       window.addEventListener("message", (e) => {
         const data = e.data || {};
         if (data.type === "TYWS_OPEN_KB_FROM_WEB") {
@@ -929,21 +860,25 @@
         }
       });
 
-      // =========================================================================
-      // 5. GẮN SỰ KIỆN CẢM ỨNG (POINTERDOWN) CHO TOÀN BỘ GIAO DIỆN
-      // =========================================================================
-      function bindTouch(el, handler) {
+      // Bắt đồng thời touchstart, pointerdown và click với cơ chế chống lặp 250ms
+      function bindTap(el, handler) {
         if (!el) return;
-        el.addEventListener("pointerdown", (e) => {
-          e.preventDefault();
+        let lastTriggered = 0;
+        const invoke = (e) => {
+          const now = Date.now();
+          if (now - lastTriggered < 250) return;
+          lastTriggered = now;
+          if (e.cancelable) e.preventDefault();
           e.stopPropagation();
-          startAudioKeepAlive();
           handler(e);
-        });
+        };
+        el.addEventListener("touchstart", invoke, { passive: false });
+        el.addEventListener("pointerdown", invoke, { passive: false });
+        el.addEventListener("click", invoke, false);
       }
 
-      bindTouch(document.getElementById("btn-home"), () => goHome());
-      bindTouch(document.getElementById("btn-back"), () => {
+      bindTap(document.getElementById("btn-home"), () => goHome());
+      bindTap(document.getElementById("btn-back"), () => {
         if (state.historyIndex > 0) {
           state.historyIndex--;
           navigateTo(state.history[state.historyIndex], false);
@@ -951,26 +886,25 @@
           goHome();
         }
       });
-      bindTouch(document.getElementById("btn-forward"), () => {
+      bindTap(document.getElementById("btn-forward"), () => {
         if (state.historyIndex < state.history.length - 1) {
           state.historyIndex++;
           navigateTo(state.history[state.historyIndex], false);
         }
       });
-      bindTouch(document.getElementById("btn-reload"), () => {
+      bindTap(document.getElementById("btn-reload"), () => {
         if (state.currentUrl) navigateTo(state.currentUrl, false);
       });
 
-      bindTouch(els.omnibox, () => {
-        const initVal = state.currentUrl || "";
-        openKeyboard("omnibox", initVal, "🌐 Nhập URL hoặc từ khóa");
+      bindTap(els.omnibox, () => {
+        openKeyboard("omnibox", state.currentUrl || "", "🌐 Nhập URL hoặc từ khóa");
       });
 
-      bindTouch(document.getElementById("home-search-trigger"), () => {
+      bindTap(document.getElementById("home-search-trigger"), () => {
         openKeyboard("omnibox", "", "🔍 Tìm kiếm hoặc nhập địa chỉ web");
       });
 
-      bindTouch(els.btnProxy, () => {
+      bindTap(els.btnProxy, () => {
         state.proxyEnabled = !state.proxyEnabled;
         els.btnProxy.textContent = state.proxyEnabled ? "🛡️ Proxy: BẬT" : "⚡ Trực tiếp";
         els.btnProxy.classList.toggle("active-mode", state.proxyEnabled);
@@ -979,7 +913,7 @@
         }
       });
 
-      bindTouch(document.getElementById("btn-toggle-kb"), () => {
+      bindTap(document.getElementById("btn-toggle-kb"), () => {
         if (els.keyboard.classList.contains("visible")) {
           closeKeyboard();
         } else {
@@ -987,26 +921,24 @@
         }
       });
 
-      bindTouch(document.getElementById("kb-btn-close"), () => closeKeyboard());
+      bindTap(document.getElementById("kb-btn-close"), () => closeKeyboard());
 
-      bindTouch(document.getElementById("kb-btn-search-google"), () => {
+      bindTap(document.getElementById("kb-btn-search-google"), () => {
         const q = state.kbBuffer.trim();
         if (q) {
           navigateTo("https://www.google.com/search?igu=1&q=" + encodeURIComponent(q), true);
         }
       });
 
-      // Các nút Bookmark trên Trang chủ
       document.querySelectorAll(".bm-card").forEach((btn) => {
-        bindTouch(btn, () => {
+        bindTap(btn, () => {
           const url = btn.getAttribute("data-url");
           if (url) navigateTo(url, true);
         });
       });
 
-      // Sự kiện cho tất cả các phím trên Bàn phím ảo
       document.querySelectorAll(".kb-key").forEach((keyBtn) => {
-        bindTouch(keyBtn, () => {
+        bindTap(keyBtn, () => {
           const char = keyBtn.getAttribute("data-char");
           const action = keyBtn.getAttribute("data-action");
 
@@ -1038,4 +970,15 @@
             els.keyShift.classList.toggle("action-toggle-on", state.shiftEnabled);
           } else if (action === "submit") {
             if (state.kbTarget === "omnibox") {
-              navigateTo(state
+              navigateTo(state.kbBuffer, true);
+            } else if (state.kbTarget === "webpage-input" && els.iframe.contentWindow) {
+              els.iframe.contentWindow.postMessage({ type: "TYWS_SUBMIT_ACTIVE_INPUT" }, "*");
+              closeKeyboard();
+            }
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
